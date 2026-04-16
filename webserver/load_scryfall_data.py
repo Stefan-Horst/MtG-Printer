@@ -1,12 +1,14 @@
 import json
-import requests
+import time
 from pathlib import Path
 from io import BytesIO
+import requests
 from PIL import Image
 
 
 SCRYFALL_API_URL = "https://api.scryfall.com"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
+TIME_BETWEEN_REQUESTS = 100 # milliseconds
 BULK_TYPE = "oracle_cards"
 
 
@@ -75,13 +77,32 @@ def load_scryfall_data(api: str = SCRYFALL_API_URL,
     print("Data saved successfully")
     return cards_data
 
-def download_card_image(image_url: str, name: str, save_dir: str = "./card_images") -> None:
+def download_multiple_card_images(images_data: list[(str, str)], save_dir: str = "./card_images") -> None:
+    """
+    Download images for multiple cards from Scryfall and save them locally.
+    
+    Args:
+        images_data: List of tuples with card name and image URL to download
+        save_dir: Directory to save the downloaded images
+    """
+    first = True
+    for name, image_url in images_data:
+        if not first:
+            time.sleep(TIME_BETWEEN_REQUESTS / 1000) # Sleep to respect rate limits
+        else:
+            first = False
+        try:
+            download_card_image(name, image_url, save_dir)
+        except Exception as e:
+            print(f"Failed to download image for {name}: {e}")
+
+def download_card_image(name: str, image_url: str, save_dir: str = "./card_images") -> None:
     """
     Download a card image from Scryfall and save it locally.
     
     Args:
-        image_url: URL of the card image to download
         name: Name of the card (used for saving the image)
+        image_url: URL of the card image to download
         save_dir: Directory to save the downloaded image
     """
     response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
