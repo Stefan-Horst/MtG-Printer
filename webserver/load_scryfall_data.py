@@ -74,3 +74,17 @@ def load_scryfall_data(api: str = SCRYFALL_API_URL,
         json.dump(cards_data, f)
     print("Data saved successfully")
     return cards_data
+
+def download_card_image(image_url: str, name: str, save_dir: str = "./card_images") -> None:
+    """
+    Download a card image from Scryfall and save it locally.
+    
+    Args:
+        image_url: URL of the card image to download
+        name: Name of the card (used for saving the image)
+        save_dir: Directory to save the downloaded image
+    """
+    response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
+    response.raise_for_status()
+    image = Image.open(BytesIO(response.content))
+    image.save(f"{save_dir}/{name}.jpg")
