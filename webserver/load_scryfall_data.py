@@ -91,10 +91,7 @@ def download_multiple_card_images(images_data: list[(str, str)], save_dir: str =
             time.sleep(TIME_BETWEEN_REQUESTS / 1000) # Sleep to respect rate limits
         else:
             first = False
-        try:
-            download_card_image(name, image_url, save_dir)
-        except Exception as e:
-            print(f"Failed to download image for {name}: {e}")
+        download_card_image(name, image_url, save_dir)
 
 def download_card_image(name: str, image_url: str, save_dir: str = "./card_images") -> None:
     """
@@ -105,7 +102,20 @@ def download_card_image(name: str, image_url: str, save_dir: str = "./card_image
         image_url: URL of the card image to download
         save_dir: Directory to save the downloaded image
     """
-    response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
-    response.raise_for_status()
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
+        response.raise_for_status()
+    except Exception:
+        print(f"Failed to download image for {name}. Trying again...")
+        time.sleep(TIME_BETWEEN_REQUESTS / 1000)
+        try:
+            response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
+            response.raise_for_status()
+        except Exception as e:
+            print(f"Failed to download image for {name} again: {e}")
+            return
+    name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
     image = Image.open(BytesIO(response.content))
     image.save(f"{save_dir}/{name}.jpg")
