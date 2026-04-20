@@ -6,11 +6,12 @@ import requests
 from PIL import Image
 
 
+BULK_TYPE = "oracle_cards"
 SCRYFALL_API_URL = "https://api.scryfall.com"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
 TIMEOUT = 5 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
-BULK_TYPE = "oracle_cards"
+CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
 
 def load_scryfall_data(api: str = SCRYFALL_API_URL, 
@@ -69,15 +70,22 @@ def load_scryfall_data(api: str = SCRYFALL_API_URL,
     # Download new data
     print(f"Downloading Scryfall data (version: {current_version})...")
     download_url = bulk_data["download_uri"]
-    data_response = requests.get(download_url, headers=SCRYFALL_HEADERS, timeout=5)
-    data_response.raise_for_status()
-    cards_data = data_response.json()
+    _download_data_in_chunks(download_url, data_file, SCRYFALL_HEADERS)
+
+def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
+    """
+    Download data from a URL in chunks and save it to a file, limiting memory usage.
     
-    # Save cards data
-    with open(data_file, "w") as f:
-        json.dump(cards_data, f)
-    print("Data saved successfully")
-    return cards_data
+    Args:
+        url: The URL to download the data from
+        filepath: The path to the file where the data will be saved
+        headers: Optional headers to include in the request
+    """
+    with requests.get(url, headers=headers, stream=True, timeout=TIMEOUT) as response:
+        response.raise_for_status()
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
+                f.write(chunk)
 
 def download_multiple_card_images(images_data: list[(str, str)], save_dir: str = "./card_images") -> None:
     """
