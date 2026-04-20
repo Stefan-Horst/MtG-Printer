@@ -17,13 +17,14 @@ def load_scryfall_data(api: str = SCRYFALL_API_URL,
                        bulk_type: str = BULK_TYPE,
                        data_dir: str = "./scryfall_data") -> dict:
     """
-    Fetch bulk data from Scryfall API with local caching and version checking.
+    Fetch bulk data info from Scryfall API and download new card data 
+    if downloaded info is more recent than local info.
     
     Args:
-        api: The Scryfall API URL to fetch bulk data information from
-        bulk_endpoint: The endpoint for fetching bulk data information
+        api: The Scryfall API URL
+        bulk_endpoint: The endpoint for fetching bulk data and its info
         bulk_type: The type of bulk data to fetch
-        data_dir: Directory to store cached data and metadata
+        data_dir: Directory to store data and metadata
         
     Returns:
         Dictionary containing the Scryfall bulk data
