@@ -8,6 +8,7 @@ from PIL import Image
 
 SCRYFALL_API_URL = "https://api.scryfall.com"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
+TIMEOUT = 5 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 BULK_TYPE = "oracle_cards"
 
@@ -36,7 +37,7 @@ def load_scryfall_data(api: str = SCRYFALL_API_URL,
     
     # Get available bulk data info from API
     bulk_info_url = f"{api}/{bulk_endpoint}"
-    response = requests.get(bulk_info_url, headers=SCRYFALL_HEADERS, timeout=5)
+    response = requests.get(bulk_info_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
     response.raise_for_status()
     bulk_data_info = response.json()
     
@@ -106,13 +107,13 @@ def download_card_image(name: str, image_url: str, save_dir: str = "./card_image
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     try:
-        response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
+        response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
         response.raise_for_status()
     except Exception:
         print(f"Failed to download image for {name}. Trying again...")
         time.sleep(TIME_BETWEEN_REQUESTS / 1000)
         try:
-            response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=5)
+            response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
             response.raise_for_status()
         except Exception as e:
             print(f"Failed to download image for {name} again: {e}")
