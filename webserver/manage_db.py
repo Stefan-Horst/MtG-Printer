@@ -1,5 +1,4 @@
 import sqlite3
-import json
 
 
 def create_database(db_path: str, schema_path: str) -> None:
@@ -10,33 +9,54 @@ def create_database(db_path: str, schema_path: str) -> None:
         schema_path: Path to the SQL schema file
     """
     conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    
     with open(schema_path, "r") as f:
         schema = f.read()
-    
-    cursor.executescript(schema)
+    conn.executescript(schema)
     conn.commit()
     conn.close()
 
 
-def load_cards_from_json(db_path: str, json_path: str) -> None:
-    """Load Magic cards from a JSON file into the database.
+class DatabaseManager:
+    """A class to manage database connections and operations for the card data."""
     
-    Args:
-        db_path: Path to the SQLite database
-        json_path: Path to the JSON file containing card data
-    """
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
+    def __init__(self, db_path: str):
+        """Initialize a new DatabaseManager instance.
+        
+        Args:
+            db_path: Path to the SQLite database file
+        """
+        self.db_path = db_path
+        self.conn = sqlite3.connect(db_path)
+        self.cursor = None
     
-    with open(json_path, "r") as f:
-        cards = json.load(f)
+    def create_cursor(self) -> None:
+        self.cursor = self.conn.cursor()
     
-    for card in cards:
+    def commit(self) -> None:
+        """Commit the current transaction to the database and reset the cursor."""
+        self.conn.commit()
+        self.cursor = None
+    
+    def close(self) -> None:
+        self.conn.close()
+        
+    def save_card_data(self, card: dict, commit: bool = True) -> None:
+        """Save a single card into the database.
+        
+        Args:
+            card: A dictionary containing the card data
+            commit: Whether to commit the transaction
+        """
+        if not self.cursor:
+            self.create_cursor()
+        self._insert_card_into_db(card)
+        if commit:
+            self.commit()
+
+    def _insert_card_into_db(self, card: dict) -> None:
         card_id = card.get("id")
         # Insert main card data
-        cursor.execute("""
+        self.cursor.execute("""
             INSERT INTO cards (
                 id, oracle_id, arena_id, resource_id, name, lang, released_at, uri, 
                 scryfall_uri, layout, highres_image, image_status, mana_cost, cmc, 
@@ -122,7 +142,7 @@ def load_cards_from_json(db_path: str, json_path: str) -> None:
         # Insert related data into junction tables
         if "card_faces" in card:
             for face in card["card_faces"]:
-                cursor.execute("""
+                self.cursor.execute("""
                     INSERT INTO card_faces (
                         card_id, name, mana_cost, artist, artist_id, cmc, flavor_text, 
                         defense, power, toughness, loyalty, illustration_id, layout, 
@@ -154,67 +174,67 @@ def load_cards_from_json(db_path: str, json_path: str) -> None:
         
         if "card_colors" in card:
             for color in card["card_colors"]:
-                cursor.execute("""INSERT INTO card_colors (card_id, color) 
-                               VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute("""INSERT INTO card_colors (card_id, color) 
+                                       VALUES (?, ?)""", (card_id, color))
         
         if "card_color_identities" in card:
             for color in card["card_color_identities"]:
-                cursor.execute("""INSERT INTO card_color_identities (card_id, color) 
-                               VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute("""INSERT INTO card_color_identities (card_id, color) 
+                                       VALUES (?, ?)""", (card_id, color))
         
         if "card_color_indicators" in card:
             for color in card["card_color_indicators"]:
-                cursor.execute("""INSERT INTO card_color_indicators (card_id, color) 
-                               VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute("""INSERT INTO card_color_indicators (card_id, color) 
+                                       VALUES (?, ?)""", (card_id, color))
         
         if "card_image_uris" in card:
             for type, uri in card["card_image_uris"].items():
-                cursor.execute("""INSERT INTO card_image_uris (card_id, type, uri) 
-                               VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute("""INSERT INTO card_image_uris (card_id, type, uri) 
+                                       VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "card_artist_ids" in card:
             for artist_id in card["card_artist_ids"]:
-                cursor.execute("""INSERT INTO card_artist_ids (card_id, artist_id) 
-                               VALUES (?, ?)""", (card_id, artist_id))
+                self.cursor.execute("""INSERT INTO card_artist_ids (card_id, artist_id) 
+                                       VALUES (?, ?)""", (card_id, artist_id))
         
         if "card_frame_effects" in card:
             for frame_effect in card["card_frame_effects"]:
-                cursor.execute("""INSERT INTO card_frame_effects (card_id, frame_effect) 
-                               VALUES (?, ?)""", (card_id, frame_effect))
+                self.cursor.execute("""INSERT INTO card_frame_effects (card_id, frame_effect) 
+                                       VALUES (?, ?)""", (card_id, frame_effect))
         
         if "card_finishes" in card:
             for finish in card["card_finishes"]:
-                cursor.execute("""INSERT INTO card_finishes (card_id, finish) 
-                               VALUES (?, ?)""", (card_id, finish))
+                self.cursor.execute("""INSERT INTO card_finishes (card_id, finish) 
+                                       VALUES (?, ?)""", (card_id, finish))
         
         if "card_produced_mana" in card:
             for color in card["card_produced_mana"]:
-                cursor.execute("""INSERT INTO card_produced_mana (card_id, color) 
-                               VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute("""INSERT INTO card_produced_mana (card_id, color) 
+                                       VALUES (?, ?)""", (card_id, color))
         
         if "card_legalities" in card:
             for format, status in card["card_legalities"].items():
-                cursor.execute("""INSERT INTO card_legalities (card_id, format, status) 
-                               VALUES (?, ?, ?)""", (card_id, format, status))
+                self.cursor.execute("""INSERT INTO card_legalities (card_id, format, status) 
+                                       VALUES (?, ?, ?)""", (card_id, format, status))
         
         if "card_games" in card:
             for game in card["card_games"]:
-                cursor.execute("""INSERT INTO card_games (card_id, game) 
-                               VALUES (?, ?)""", (card_id, game))
+                self.cursor.execute("""INSERT INTO card_games (card_id, game) 
+                                       VALUES (?, ?)""", (card_id, game))
         
         if "card_multiverse_ids" in card:
             for multiverse_id in card["card_multiverse_ids"]:
-                cursor.execute("""INSERT INTO card_multiverse_ids (card_id, multiverse_id) 
-                               VALUES (?, ?)""", (card_id, multiverse_id))
+                self.cursor.execute("""INSERT INTO card_multiverse_ids (card_id, multiverse_id) 
+                                       VALUES (?, ?)""", (card_id, multiverse_id))
         
         if "card_keywords" in card:
             for keyword in card["card_keywords"]:
-                cursor.execute("""INSERT INTO card_keywords (card_id, keyword) 
-                               VALUES (?, ?)""", (card_id, keyword))
+                self.cursor.execute("""INSERT INTO card_keywords (card_id, keyword) 
+                                       VALUES (?, ?)""", (card_id, keyword))
         
         if "card_all_parts" in card:
             for part in card["card_all_parts"]:
-                cursor.execute("""
+                self.cursor.execute("""
                     INSERT INTO card_all_parts (
                         card_id, component, name, type_line, uri
                     ) VALUES (?, ?, ?, ?, ?)
@@ -229,22 +249,22 @@ def load_cards_from_json(db_path: str, json_path: str) -> None:
         if "card_prices" in card:
             for type, price in card["card_prices"].items():
                 if price is not None:
-                    cursor.execute("""INSERT INTO card_prices (card_id, type, price) 
-                                   VALUES (?, ?, ?)""", (card_id, type, price))
+                    self.cursor.execute("""INSERT INTO card_prices (card_id, type, price) 
+                                           VALUES (?, ?, ?)""", (card_id, type, price))
         
         if "card_related_uris" in card:
             for type, uri in card["card_related_uris"].items():
-                cursor.execute("""INSERT INTO card_related_uris (card_id, type, uri) 
-                               VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute("""INSERT INTO card_related_uris (card_id, type, uri) 
+                                       VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "card_purchase_uris" in card:
             for type, uri in card["card_purchase_uris"].items():
-                cursor.execute("""INSERT INTO card_purchase_uris (card_id, type, uri) 
-                               VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute("""INSERT INTO card_purchase_uris (card_id, type, uri) 
+                                       VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "card_previews" in card:
             preview = card["card_previews"]
-            cursor.execute("""
+            self.cursor.execute("""
                 INSERT INTO card_previews (
                     card_id, source, source_uri, previewed_at
                 ) VALUES (?, ?, ?, ?)
@@ -257,13 +277,10 @@ def load_cards_from_json(db_path: str, json_path: str) -> None:
         
         if "card_promo_types" in card:
             for type in card["card_promo_types"]:
-                cursor.execute("""INSERT INTO card_promo_types (card_id, type) 
-                               VALUES (?, ?)""", (card_id, type))
+                self.cursor.execute("""INSERT INTO card_promo_types (card_id, type) 
+                                       VALUES (?, ?)""", (card_id, type))
         
         if "card_attraction_lights" in card:
             for number in card["card_attraction_lights"]:
-                cursor.execute("""INSERT INTO card_attraction_lights (card_id, number) 
-                               VALUES (?, ?)""", (card_id, number))
-    
-    conn.commit()
-    conn.close()
+                self.cursor.execute("""INSERT INTO card_attraction_lights (card_id, number) 
+                                       VALUES (?, ?)""", (card_id, number))
