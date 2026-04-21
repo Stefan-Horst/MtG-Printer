@@ -2,7 +2,9 @@ import json
 import time
 from pathlib import Path
 from io import BytesIO
+from collections.abc import Generator
 import requests
+from splitstream import splitfile
 from PIL import Image
 
 
@@ -13,6 +15,20 @@ TIMEOUT = 5 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
+
+def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]:
+    """
+    Load card data from a JSON file in chunks of single card dicts to limit memory usage.
+    
+    Args:
+        filepath: The path to the JSON file containing card data
+        
+    Returns:
+        A generator that yields a dictionary containing the loaded card data for each card in the file
+    """
+    with open(filepath, "r") as f:
+        for card in splitfile(f, format="json", startdepth=1):
+            yield json.loads(card)
 
 def download_scryfall_data(api: str = SCRYFALL_API_URL, 
                            bulk_endpoint: str = "bulk-data", 
