@@ -30,7 +30,7 @@ CREATE TABLE cards (
     border_color TEXT NOT NULL,
     frame TEXT,
     security_stamp TEXT,
-    card_back_id TEXT NOT NULL,
+    card_back_id TEXT, -- Actually can be null for double-faced cards
     set_id TEXT NOT NULL,
     set_ TEXT NOT NULL, -- "set" is a reserved keyword
     set_name TEXT NOT NULL,
