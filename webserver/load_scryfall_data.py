@@ -8,8 +8,14 @@ from splitstream import splitfile
 from PIL import Image
 
 
+IMAGE_DIR = "./card_images"
+DATA_DIR = "./card_data"
+METADATA_FILE = "metadata.json"
+DATA_FILE = "cards.json"
+
 BULK_TYPE = "oracle_cards"
 SCRYFALL_API_URL = "https://api.scryfall.com"
+BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
 TIMEOUT = 5 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
@@ -31,9 +37,9 @@ def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]
             yield json.loads(card)
 
 def download_scryfall_data(api: str = SCRYFALL_API_URL, 
-                           bulk_endpoint: str = "bulk-data", 
+                           bulk_endpoint: str = BULK_DATA_ENDPOINT, 
                            bulk_type: str = BULK_TYPE,
-                           data_dir: str = "./scryfall_data",
+                           data_dir: str = DATA_DIR,
                            force_update: bool = False) -> bool:
     """
     Fetch bulk data info from Scryfall API and download new card data 
@@ -49,10 +55,10 @@ def download_scryfall_data(api: str = SCRYFALL_API_URL,
     Returns:
         True if data was successfully loaded or already up to date, False otherwise
     """
-    cache_path = Path(data_dir)
-    cache_path.mkdir(parents=True, exist_ok=True)
-    data_file = cache_path / "cards.json"
-    metadata_file = cache_path / "metadata.json"
+    data_path = Path(data_dir)
+    data_path.mkdir(parents=True, exist_ok=True)
+    data_file = data_path / DATA_FILE
+    metadata_file = data_path / METADATA_FILE
     
     # Get available bulk data info from API
     bulk_info_url = f"{api}/{bulk_endpoint}"
@@ -119,13 +125,13 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 f.write(chunk)
 
-def download_multiple_card_images(images_data: list[(str, str)], save_dir: str = "./card_images") -> None:
+def download_multiple_card_images(images_data: list[(str, str)], image_dir: str = IMAGE_DIR) -> None:
     """
     Download images for multiple cards from Scryfall and save them locally.
     
     Args:
         images_data: List of tuples with card name and image URL to download
-        save_dir: Directory to save the downloaded images
+        image_dir: Directory to save the downloaded images
     """
     first = True
     for name, image_url in images_data:
@@ -133,19 +139,19 @@ def download_multiple_card_images(images_data: list[(str, str)], save_dir: str =
             time.sleep(TIME_BETWEEN_REQUESTS / 1000) # Sleep to respect rate limits
         else:
             first = False
-        download_card_image(name, image_url, save_dir)
+        download_card_image(name, image_url, image_dir)
 
-def download_card_image(name: str, image_url: str, save_dir: str = "./card_images") -> None:
+def download_card_image(name: str, image_url: str, image_dir: str = IMAGE_DIR) -> None:
     """
     Download a card image from Scryfall and save it locally.
     
     Args:
         name: Name of the card (used for saving the image)
         image_url: URL of the card image to download
-        save_dir: Directory to save the downloaded image
+        image_dir: Directory to save the downloaded image
     """
-    save_dir = Path(save_dir)
-    save_dir.mkdir(parents=True, exist_ok=True)
+    image_dir = Path(image_dir)
+    image_dir.mkdir(parents=True, exist_ok=True)
     try:
         response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
         response.raise_for_status()
@@ -160,4 +166,4 @@ def download_card_image(name: str, image_url: str, save_dir: str = "./card_image
             return
     name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
     image = Image.open(BytesIO(response.content))
-    image.save(f"{save_dir}/{name}.jpg")
+    image.save(f"{image_dir}/{name}.jpg")
