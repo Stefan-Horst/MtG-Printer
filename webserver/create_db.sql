@@ -220,7 +220,7 @@ CREATE TABLE card_prices (
     type TEXT NOT NULL,
     price REAL,
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
-    UNIQUE(type)
+    UNIQUE(card_id, type)
 );
 
 CREATE TABLE card_related_uris (
@@ -229,7 +229,7 @@ CREATE TABLE card_related_uris (
     type TEXT NOT NULL,
     uri TEXT NOT NULL,
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
-    UNIQUE(type)
+    UNIQUE(card_id, type)
 );
 
 CREATE TABLE card_purchase_uris (
@@ -238,7 +238,7 @@ CREATE TABLE card_purchase_uris (
     type TEXT NOT NULL,
     uri TEXT NOT NULL,
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
-    UNIQUE(type)
+    UNIQUE(card_id, type)
 );
 
 CREATE TABLE card_previews (
@@ -248,7 +248,7 @@ CREATE TABLE card_previews (
     source_uri TEXT NOT NULL,
     previewed_at TEXT NOT NULL,
     FOREIGN KEY (card_id) REFERENCES cards(id) ON DELETE CASCADE,
-    UNIQUE(source_uri)
+    UNIQUE(card_id, source_uri)
 );
 
 CREATE TABLE card_promo_types(
