@@ -167,3 +167,22 @@ def download_card_image(name: str, image_url: str, image_dir: str = IMAGE_DIR) -
     name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
     image = Image.open(BytesIO(response.content))
     image.save(f"{image_dir}/{name}.jpg")
+
+def get_card_image_urls(card_data: dict, image_type: str = "border_crop") -> list[(str, str)]:
+    """
+    Get the image URLs and names of the card faces for a card from its data dictionary.
+    
+    Args:
+        card_data: The dictionary containing the card data
+        image_type: The type of image to retrieve (e.g., "border_crop", "large", "normal", "small", "png")
+    
+    Returns:
+        A list of tuples containing the name and image URLs for the card
+    """
+    urls = []
+    if "image_uris" in card_data:
+        urls.append((card_data["name"], card_data["image_uris"][image_type]))
+    elif "card_faces" in card_data:
+        for face in card_data["card_faces"]:
+            urls.append((face["name"], face["image_uris"][image_type]))
+    return urls
