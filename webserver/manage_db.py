@@ -172,68 +172,68 @@ class DatabaseManager:
                     face.get("watermark")
                 ))
         
-        if "card_colors" in card:
-            for color in card["card_colors"]:
+        if "colors" in card:
+            for color in card["colors"]:
                 self.cursor.execute("""INSERT INTO card_colors (card_id, color) 
                                        VALUES (?, ?)""", (card_id, color))
         
-        if "card_color_identities" in card:
-            for color in card["card_color_identities"]:
+        if "color_identities" in card:
+            for color in card["color_identities"]:
                 self.cursor.execute("""INSERT INTO card_color_identities (card_id, color) 
                                        VALUES (?, ?)""", (card_id, color))
         
-        if "card_color_indicators" in card:
-            for color in card["card_color_indicators"]:
+        if "color_indicators" in card:
+            for color in card["color_indicators"]:
                 self.cursor.execute("""INSERT INTO card_color_indicators (card_id, color) 
                                        VALUES (?, ?)""", (card_id, color))
         
-        if "card_image_uris" in card:
-            for type, uri in card["card_image_uris"].items():
+        if "image_uris" in card:
+            for type, uri in card["image_uris"].items():
                 self.cursor.execute("""INSERT INTO card_image_uris (card_id, type, uri) 
                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
-        if "card_artist_ids" in card:
-            for artist_id in card["card_artist_ids"]:
+        if "artist_ids" in card:
+            for artist_id in card["artist_ids"]:
                 self.cursor.execute("""INSERT INTO card_artist_ids (card_id, artist_id) 
                                        VALUES (?, ?)""", (card_id, artist_id))
         
-        if "card_frame_effects" in card:
-            for frame_effect in card["card_frame_effects"]:
+        if "frame_effects" in card:
+            for frame_effect in card["frame_effects"]:
                 self.cursor.execute("""INSERT INTO card_frame_effects (card_id, frame_effect) 
                                        VALUES (?, ?)""", (card_id, frame_effect))
         
-        if "card_finishes" in card:
-            for finish in card["card_finishes"]:
+        if "finishes" in card:
+            for finish in card["finishes"]:
                 self.cursor.execute("""INSERT INTO card_finishes (card_id, finish) 
                                        VALUES (?, ?)""", (card_id, finish))
         
-        if "card_produced_mana" in card:
-            for color in card["card_produced_mana"]:
+        if "produced_mana" in card:
+            for color in card["produced_mana"]:
                 self.cursor.execute("""INSERT INTO card_produced_mana (card_id, color) 
                                        VALUES (?, ?)""", (card_id, color))
         
-        if "card_legalities" in card:
-            for format, status in card["card_legalities"].items():
+        if "legalities" in card:
+            for format, status in card["legalities"].items():
                 self.cursor.execute("""INSERT INTO card_legalities (card_id, format, status) 
                                        VALUES (?, ?, ?)""", (card_id, format, status))
         
-        if "card_games" in card:
-            for game in card["card_games"]:
+        if "games" in card:
+            for game in card["games"]:
                 self.cursor.execute("""INSERT INTO card_games (card_id, game) 
                                        VALUES (?, ?)""", (card_id, game))
         
-        if "card_multiverse_ids" in card:
-            for multiverse_id in card["card_multiverse_ids"]:
+        if "multiverse_ids" in card:
+            for multiverse_id in card["multiverse_ids"]:
                 self.cursor.execute("""INSERT INTO card_multiverse_ids (card_id, multiverse_id) 
                                        VALUES (?, ?)""", (card_id, multiverse_id))
         
-        if "card_keywords" in card:
-            for keyword in card["card_keywords"]:
+        if "keywords" in card:
+            for keyword in card["keywords"]:
                 self.cursor.execute("""INSERT INTO card_keywords (card_id, keyword) 
                                        VALUES (?, ?)""", (card_id, keyword))
         
-        if "card_all_parts" in card:
-            for part in card["card_all_parts"]:
+        if "all_parts" in card:
+            for part in card["all_parts"]:
                 self.cursor.execute("""
                     INSERT INTO card_all_parts (
                         card_id, component, name, type_line, uri
@@ -246,24 +246,24 @@ class DatabaseManager:
                         part.get("uri")
                 ))
         
-        if "card_prices" in card:
-            for type, price in card["card_prices"].items():
+        if "prices" in card:
+            for type, price in card["prices"].items():
                 if price is not None:
                     self.cursor.execute("""INSERT INTO card_prices (card_id, type, price) 
                                            VALUES (?, ?, ?)""", (card_id, type, price))
         
-        if "card_related_uris" in card:
-            for type, uri in card["card_related_uris"].items():
+        if "related_uris" in card:
+            for type, uri in card["related_uris"].items():
                 self.cursor.execute("""INSERT INTO card_related_uris (card_id, type, uri) 
                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
-        if "card_purchase_uris" in card:
-            for type, uri in card["card_purchase_uris"].items():
+        if "purchase_uris" in card:
+            for type, uri in card["purchase_uris"].items():
                 self.cursor.execute("""INSERT INTO card_purchase_uris (card_id, type, uri) 
                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
-        if "card_previews" in card:
-            preview = card["card_previews"]
+        if "previews" in card:
+            preview = card["previews"]
             self.cursor.execute("""
                 INSERT INTO card_previews (
                     card_id, source, source_uri, previewed_at
@@ -275,12 +275,12 @@ class DatabaseManager:
                 preview.get("previewed_at")
             ))
         
-        if "card_promo_types" in card:
-            for type in card["card_promo_types"]:
+        if "promo_types" in card:
+            for type in card["promo_types"]:
                 self.cursor.execute("""INSERT INTO card_promo_types (card_id, type) 
                                        VALUES (?, ?)""", (card_id, type))
         
-        if "card_attraction_lights" in card:
-            for number in card["card_attraction_lights"]:
+        if "attraction_lights" in card:
+            for number in card["attraction_lights"]:
                 self.cursor.execute("""INSERT INTO card_attraction_lights (card_id, number) 
                                        VALUES (?, ?)""", (card_id, number))
