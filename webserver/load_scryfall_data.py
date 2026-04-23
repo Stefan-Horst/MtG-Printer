@@ -125,7 +125,7 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 f.write(chunk)
 
-def download_multiple_card_images(images_data: list[(str, str)], image_dir: str = IMAGE_DIR) -> None:
+def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
     """
     Download images for multiple cards from Scryfall and save them locally.
     
@@ -168,7 +168,7 @@ def download_card_image(name: str, image_url: str, image_dir: str = IMAGE_DIR) -
     image = Image.open(BytesIO(response.content))
     image.save(f"{image_dir}/{name}.jpg")
 
-def get_card_image_urls(card_data: dict, image_type: str = "border_crop") -> list[(str, str)]:
+def get_card_image_urls(card_data: dict, image_type: str = "border_crop") -> list[tuple[str, str]]:
     """
     Get the image URLs and names of the card faces for a card from its data dictionary.
     
