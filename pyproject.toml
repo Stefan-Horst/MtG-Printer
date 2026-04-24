@@ -9,13 +9,13 @@ authors = [{ name="Stefan Horst", email="stefan-horst@gmx.de" }]
 description = "A tool for printing Magic cards on a thermal printer using a Raspberry Pi."
 dependencies = [
     "requests",
+    "aiohttp[speedups]",
     "pillow",
-    "rpi.gpio",
-    "luma.oled",
-    "pytest",
 ]
 
-[tool.pytest.ini_options]
-addopts = [
-    "--import-mode=importlib",
+[project.optional-dependencies]
+raspi = [
+    "rpi.gpio",
+    "luma.oled",
+    "python.escpos[serial]",
 ]
