@@ -26,19 +26,49 @@ CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
 ### JSON CARD DATA FILE LOADING
 
-def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]:
+def load_scryfall_card_data_chunks(filepath: str, skip_invalid: bool = True) -> Generator[dict, None, None]:
     """
     Load card data from a JSON file in chunks of single card dicts to limit memory usage.
     
     Args:
         filepath: The path to the JSON file containing card data
+        skip_invalid: If True, skip cards that are not considered valid for printing
         
     Returns:
         A generator that yields a dictionary containing the loaded card data for each card in the file
     """
     with open(filepath, "r") as f:
         for card in splitfile(f, format="json", startdepth=1):
-            yield json.loads(card)
+            card_data = json.loads(card)
+            if not skip_invalid and _is_card_valid(card_data):
+                yield card_data
+
+def _is_card_valid(card_data: dict) -> bool:
+    """Check if a card is valid for saving based on its properties.
+    This is used to filter out special cards that are not relevant for printing 
+    (e.g, art series, playtest cards, un-cards, and other cards not used in normal play).
+    
+    Args:
+        card_data: The dictionary containing the card data for a single card
+        
+    Returns:
+        True if the card is valid for printing, False otherwise
+    """
+
+    if (# cards not legal in any format
+        "legal" not in card_data["legalities"].values() 
+        # card types not played in any normal format
+        or card_data["layout"] in ["art_series", "scheme", "vanguard", "planar", "double_faced_token"] 
+        # digital cards
+        or card_data.get("digital", False) == True
+        # un-cards
+        or card_data["border_color"] == "silver" 
+        or card_data.get("security_stamp") == "acorn"
+        # special collector & minigame cards
+        or set(card_data.get("promo_types", [])) & {"playtest", "plastic", "alchemy"}
+        or card_data["set_type"] in ["memorabilia", "minigame", "alchemy"]):
+        return False
+    return True
 
 ### JSON CARD DATA DOWNLOADING
 
