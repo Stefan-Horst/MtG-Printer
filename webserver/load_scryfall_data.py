@@ -24,7 +24,7 @@ TIMEOUT = 20 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
-### JSON CARD DATA
+### JSON CARD DATA FILE LOADING
 
 def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]:
     """
@@ -39,6 +39,8 @@ def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]
     with open(filepath, "r") as f:
         for card in splitfile(f, format="json", startdepth=1):
             yield json.loads(card)
+
+### JSON CARD DATA DOWNLOADING
 
 def download_scryfall_data(api: str = SCRYFALL_API_URL, 
                            bulk_endpoint: str = BULK_DATA_ENDPOINT, 
@@ -131,7 +133,20 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
 
 ### CARD IMAGES
 
-def download_images_from_card_data_list(filepath: str) -> None:
+def download_images_from_card_data_list(card_data: dict) -> None:
+    """
+    Download card images from Scryfall for a list of cards.
+    
+    Args:
+        card_data: The dictionary containing the card data for multiple cards
+    """
+    image_data = []
+    for card in card_data:
+        image_urls = get_card_image_urls(card)
+        image_data.extend(image_urls)
+    asyncio.run(download_multiple_card_images(image_data))
+
+def download_images_from_card_data_file(filepath: str) -> None:
     """
     Download card images from Scryfall for all cards in a JSON file.
     
@@ -193,7 +208,7 @@ def get_card_image_urls(card_data: dict, image_type: str = IMAGE_TYPE) -> list[t
     Get the image URLs and names of the card faces for a card from its data dictionary.
     
     Args:
-        card_data: The dictionary containing the card data
+        card_data: The dictionary containing the card data for a single card
         image_type: The type of image to retrieve (e.g., "border_crop", "large", "normal", "small", "png")
     
     Returns:
