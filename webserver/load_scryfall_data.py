@@ -16,10 +16,11 @@ METADATA_FILE = "metadata.json"
 DATA_FILE = "cards.json"
 
 BULK_TYPE = "oracle_cards"
+IMAGE_TYPE = "border_crop"
 SCRYFALL_API_URL = "https://api.scryfall.com"
 BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
-TIMEOUT = 5 # seconds
+TIMEOUT = 20 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
@@ -187,7 +188,7 @@ async def _download_card_image(name: str, image_url: str, session: aiohttp.Clien
     image = Image.open(BytesIO(content))
     image.save(f"{image_dir}/{name}.jpg")
 
-def get_card_image_urls(card_data: dict, image_type: str = "border_crop") -> list[tuple[str, str]]:
+def get_card_image_urls(card_data: dict, image_type: str = IMAGE_TYPE) -> list[tuple[str, str]]:
     """
     Get the image URLs and names of the card faces for a card from its data dictionary.
     
