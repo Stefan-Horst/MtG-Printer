@@ -1,9 +1,11 @@
 import json
 import time
+import asyncio
 from pathlib import Path
 from io import BytesIO
 from collections.abc import Generator
 import requests
+import aiohttp
 from splitstream import splitfile
 from PIL import Image
 
@@ -21,6 +23,7 @@ TIMEOUT = 5 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
+### JSON CARD DATA
 
 def load_scryfall_card_data_chunks(filepath: str) -> Generator[dict, None, None]:
     """
@@ -125,47 +128,63 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 f.write(chunk)
 
-def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
+### CARD IMAGES
+
+def download_images_from_card_data_list(filepath: str) -> None:
     """
-    Download images for multiple cards from Scryfall and save them locally.
+    Download card images from Scryfall for all cards in a JSON file.
+    
+    Args:
+        filepath: The path to the JSON file containing card data
+    """
+    file_image_data = []
+    for card_data in load_scryfall_card_data_chunks(filepath):
+        image_urls = get_card_image_urls(card_data)
+        file_image_data.extend(image_urls)
+    asyncio.run(download_multiple_card_images(file_image_data))
+
+async def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
+    """
+    Download images for multiple cards from Scryfall and save them locally. 
+    Uses async pattern to speed up the process.
     
     Args:
         images_data: List of tuples with card name and image URL to download
         image_dir: Directory to save the downloaded images
     """
-    first = True
-    for name, image_url in images_data:
-        if not first:
-            time.sleep(TIME_BETWEEN_REQUESTS / 1000) # Sleep to respect rate limits
-        else:
-            first = False
-        download_card_image(name, image_url, image_dir)
+    image_dir = Path(image_dir)
+    image_dir.mkdir(parents=True, exist_ok=True)
+    async with aiohttp.ClientSession() as session:
+        tasks = [_download_card_image(name, url, session, image_dir) for name, url in images_data]
+        await asyncio.gather(*tasks)
 
-def download_card_image(name: str, image_url: str, image_dir: str = IMAGE_DIR) -> None:
+async def _download_card_image(name: str, image_url: str, session: aiohttp.ClientSession, image_dir: str = IMAGE_DIR) -> None:
     """
-    Download a card image from Scryfall and save it locally.
+    Download a card image from Scryfall and save it locally. 
+    Must be called within an aiohttp client session.
     
     Args:
         name: Name of the card (used for saving the image)
         image_url: URL of the card image to download
+        session: aiohttp client session to use for the request
         image_dir: Directory to save the downloaded image
     """
     image_dir = Path(image_dir)
     image_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
-        response.raise_for_status()
-    except Exception:
-        print(f"Failed to download image for {name}. Trying again...")
-        time.sleep(TIME_BETWEEN_REQUESTS / 1000)
+    async with session.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT, raise_for_status=True) as response:
         try:
-            response = requests.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT)
-            response.raise_for_status()
-        except Exception as e:
-            print(f"Failed to download image for {name} again: {e}")
-            return
+            content = await response.read()
+        except Exception:
+            print(f"Failed to download image for {name}. Trying again...")
+            await asyncio.sleep(TIME_BETWEEN_REQUESTS / 1000)
+            try:
+                async with session.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT, raise_for_status=True) as response:
+                    content = await response.read()
+            except Exception as e:
+                print(f"Failed to download image for {name} again: {e}")
+                return
     name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
-    image = Image.open(BytesIO(response.content))
+    image = Image.open(BytesIO(content))
     image.save(f"{image_dir}/{name}.jpg")
 
 def get_card_image_urls(card_data: dict, image_type: str = "border_crop") -> list[tuple[str, str]]:
