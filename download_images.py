@@ -1,10 +1,12 @@
 import asyncio
 import timeit
+import sys
 from io import BytesIO
 import aiohttp
 from PIL import Image
 from webserver.load_scryfall_data import load_scryfall_card_data_chunks, get_card_image_urls, SCRYFALL_HEADERS, TIMEOUT, IMAGE_DIR
 
+progress = 0
 
 async def download_all_images():
     counter = 0
@@ -46,12 +48,19 @@ async def download_image(url, name, session):
                 return
     image = Image.open(BytesIO(content))
     image.save(f"{IMAGE_DIR}/{name}.jpg")
+    
+    global progress
+    progress += 1
+    sys.stdout.write("\b" * len(str(progress)))
+    sys.stdout.write(str(progress))
+    sys.stdout.flush()
 
 async def main():
-    start_time = timeit.default_timer()
+    sys.stdout.write("0")
+    sys.stdout.flush()
     
+    start_time = timeit.default_timer()
     await download_all_images()
-
     end_time = timeit.default_timer()
     print(f"Downloaded in {end_time - start_time:.4f} seconds")
 
