@@ -174,7 +174,7 @@ def download_images_from_card_data_list(card_data: list[dict]) -> None:
     for card in card_data:
         image_urls = get_card_image_urls(card)
         image_data.extend(image_urls)
-    asyncio.run(download_multiple_card_images(image_data))
+    download_multiple_card_images(image_data)
 
 def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE) -> None:
     """
@@ -187,9 +187,20 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE) 
     for card_data in load_scryfall_card_data_chunks(filepath):
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
-    asyncio.run(download_multiple_card_images(file_image_data))
+    download_multiple_card_images(file_image_data)
 
-async def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
+def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
+    """
+    Download images for multiple cards from Scryfall and save them locally. 
+    Wrapper function to run the async download function.
+    
+    Args:
+        images_data: List of tuples with card name and image URL to download
+        image_dir: Directory to save the downloaded images
+    """
+    asyncio.run(_download_multiple_card_images(images_data, image_dir))
+
+async def _download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> None:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Uses async pattern to speed up the process.
