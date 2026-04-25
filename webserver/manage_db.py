@@ -1,13 +1,21 @@
 import sqlite3
+from pathlib import Path
 
 
-def create_database(db_path: str, schema_path: str) -> None:
+def create_database(db_path: str, schema_path: str, ignore_if_exists: bool = True) -> None:
     """Create a SQLite database from a SQL schema file.
     
     Args:
         db_path: Path to the database file to create
         schema_path: Path to the SQL schema file
+        ignore_if_exists: If True, do nothing if the db already exists. If False, delete the db and create a new one.
     """
+    if Path(db_path).exists():
+        if ignore_if_exists:
+            return # executing code below would raise an exception
+        else:
+            Path(db_path).unlink() # delete existing db to create a new one
+
     conn = sqlite3.connect(db_path)
     with open(schema_path, "r") as f:
         schema = f.read()
