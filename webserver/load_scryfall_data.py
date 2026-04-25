@@ -26,13 +26,13 @@ CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
 ### JSON CARD DATA FILE LOADING
 
-def load_scryfall_card_data_chunks(filepath: str, skip_invalid: bool = True) -> Generator[dict, None, None]:
+def load_scryfall_card_data_chunks(filepath: str, exclude_invalid: bool = True) -> Generator[dict, None, None]:
     """
     Load card data from a JSON file in chunks of single card dicts to limit memory usage.
     
     Args:
         filepath: The path to the JSON file containing card data
-        skip_invalid: If True, skip cards that are not considered valid for printing
+        exclude_invalid: If True, skip cards that are not considered valid for printing
         
     Returns:
         A generator that yields a dictionary containing the loaded card data for each card in the file
@@ -40,7 +40,7 @@ def load_scryfall_card_data_chunks(filepath: str, skip_invalid: bool = True) -> 
     with open(filepath, "r") as f:
         for card in splitfile(f, format="json", startdepth=1):
             card_data = json.loads(card)
-            if not skip_invalid and _is_card_valid(card_data):
+            if not exclude_invalid or _is_card_valid(card_data):
                 yield card_data
 
 def _is_card_valid(card_data: dict) -> bool:
