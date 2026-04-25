@@ -26,7 +26,7 @@ CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 
 ### JSON CARD DATA FILE LOADING
 
-def load_scryfall_card_data_chunks(filepath: str, exclude_invalid: bool = True) -> Generator[dict, None, None]:
+def load_scryfall_card_data_chunks(filepath: str = DATA_DIR+"/"+DATA_FILE, exclude_invalid: bool = True) -> Generator[dict, None, None]:
     """
     Load card data from a JSON file in chunks of single card dicts to limit memory usage.
     
@@ -163,12 +163,12 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
 
 ### CARD IMAGES
 
-def download_images_from_card_data_list(card_data: dict) -> None:
+def download_images_from_card_data_list(card_data: list[dict]) -> None:
     """
     Download card images from Scryfall for a list of cards.
     
     Args:
-        card_data: The dictionary containing the card data for multiple cards
+        card_data: The list of dictionaries containing card data for multiple cards
     """
     image_data = []
     for card in card_data:
@@ -176,7 +176,7 @@ def download_images_from_card_data_list(card_data: dict) -> None:
         image_data.extend(image_urls)
     asyncio.run(download_multiple_card_images(image_data))
 
-def download_images_from_card_data_file(filepath: str) -> None:
+def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE) -> None:
     """
     Download card images from Scryfall for all cards in a JSON file.
     
