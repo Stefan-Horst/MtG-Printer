@@ -1,6 +1,5 @@
 import asyncio
 import timeit
-import sys
 from io import BytesIO
 import aiohttp
 from PIL import Image
@@ -12,13 +11,6 @@ async def download_all_images():
     counter = 0
     data = []
     for card_data in load_scryfall_card_data_chunks("data.json"):
-        if ((card_data["layout"] in ["art_series", "scheme", "vanguard", "planar", "double_faced_token"]) 
-            or card_data["border_color"] == "silver" 
-            or card_data.get("security_stamp", "") == "acorn"
-            or card_data["set_type"] in ["memorabilia", "minigame", "alchemy"]
-            or card_data.get("digital", False) == True
-            or "legal" not in card_data["legalities"].values()):
-            continue  # Skip abnormal cards that are not relevant for printing
         image_uris = get_card_image_urls(card_data)
         data.extend(image_uris)
         
@@ -51,17 +43,12 @@ async def download_image(url, name, session):
     
     global progress
     progress += 1
-    sys.stdout.write("\b" * len(str(progress)))
-    sys.stdout.write(str(progress))
-    sys.stdout.flush()
+    print("\b" * len(str(progress)), end="")
+    print(str(progress), end="", flush=True)
 
-async def main():
-    sys.stdout.write("0")
-    sys.stdout.flush()
-    
-    start_time = timeit.default_timer()
-    await download_all_images()
-    end_time = timeit.default_timer()
-    print(f"Downloaded in {end_time - start_time:.4f} seconds")
 
-asyncio.run(main())
+print("0", end="", flush=True)
+start_time = timeit.default_timer()
+asyncio.run(download_all_images())
+end_time = timeit.default_timer()
+print(f"\nDownloaded in {end_time - start_time:.4f} seconds")
