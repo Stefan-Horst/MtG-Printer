@@ -5,6 +5,8 @@ import aiohttp
 from PIL import Image
 from webserver.load_scryfall_data import load_scryfall_card_data_chunks, get_card_image_urls, SCRYFALL_HEADERS, TIMEOUT, IMAGE_DIR
 
+MAX_CONCURRENT_DOWNLOADS = 50
+
 progress = 0
 
 async def download_all_images():
@@ -21,7 +23,8 @@ async def download_all_images():
     def _make_filename_valid(name: str) -> str:
         return name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
 
-    async with aiohttp.ClientSession() as session:
+    conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_DOWNLOADS)
+    async with aiohttp.ClientSession(connector=conn) as session:
         tasks = [download_image(url, _make_filename_valid(name), session) for name, url in data]
         await asyncio.gather(*tasks)
 
