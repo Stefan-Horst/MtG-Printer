@@ -23,6 +23,7 @@ SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
 TIMEOUT = 20 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
+MAX_CONCURRENT_DOWNLOADS = 50 # limit for concurrent image downloads
 
 ### JSON CARD DATA FILE LOADING
 
@@ -211,7 +212,8 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]], ima
     """
     image_dir = Path(image_dir)
     image_dir.mkdir(parents=True, exist_ok=True)
-    async with aiohttp.ClientSession() as session:
+    conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_DOWNLOADS)
+    async with aiohttp.ClientSession(connector=conn) as session:
         tasks = [_download_card_image(name, url, session, image_dir) for name, url in images_data]
         await asyncio.gather(*tasks)
 
@@ -226,8 +228,6 @@ async def _download_card_image(name: str, image_url: str, session: aiohttp.Clien
         session: aiohttp client session to use for the request
         image_dir: Directory to save the downloaded image
     """
-    image_dir = Path(image_dir)
-    image_dir.mkdir(parents=True, exist_ok=True)
     async with session.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT, raise_for_status=True) as response:
         try:
             content = await response.read()
