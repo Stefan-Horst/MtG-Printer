@@ -116,14 +116,14 @@ def download_scryfall_data(api: str = SCRYFALL_API_URL,
     if not force_update and metadata_file.exists():
         with open(metadata_file, "r") as f:
             metadata = json.load(f)
-        if metadata.get("version") == current_version:
+        if metadata.get("updated_at") == current_version:
             if data_file.exists():
                 print(f"Using local up-to-date data (version: {current_version})")
                 return True
             else:
                 print("Metadata version matches but data file is missing.")
         else:
-            print(f"Local metadata (version: {metadata.get('version')}) is outdated. Using new metadata (version: {current_version})")
+            print(f"Local metadata (version: {metadata.get('updated_at')}) is outdated. Using new metadata (version: {current_version})")
             with open(metadata_file, "w") as f:
                 json.dump(bulk_data_info, f)
     else:
