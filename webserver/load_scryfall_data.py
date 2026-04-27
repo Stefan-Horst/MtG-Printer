@@ -164,12 +164,13 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
 
 ### CARD IMAGES
 
-def download_images_from_card_data_list(card_data: list[dict]) -> list[tuple[str, str]]:
+def download_images_from_card_data_list(card_data: list[dict], skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download card images from Scryfall for a list of cards.
     
     Args:
         card_data: The list of dictionaries containing card data for multiple cards
+        skip_existing: If True, skip downloading images that already exist in the directory
     
     Returns:
         List of tuples with card name and image URL that failed to download
@@ -178,14 +179,15 @@ def download_images_from_card_data_list(card_data: list[dict]) -> list[tuple[str
     for card in card_data:
         image_urls = get_card_image_urls(card)
         image_data.extend(image_urls)
-    return download_multiple_card_images(image_data)
+    return download_multiple_card_images(image_data, skip_existing=skip_existing)
 
-def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE) -> list[tuple[str, str]]:
+def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download card images from Scryfall for all cards in a JSON file.
     
     Args:
         filepath: The path to the JSON file containing card data
+        skip_existing: If True, skip downloading images that already exist in the directory
     
     Returns:
         List of tuples with card name and image URL that failed to download
@@ -194,9 +196,9 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE) 
     for card_data in load_scryfall_card_data_chunks(filepath):
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
-    return download_multiple_card_images(file_image_data)
+    return download_multiple_card_images(file_image_data, skip_existing=skip_existing)
 
-def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> list[tuple[str, str]]:
+def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR, skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Wrapper function to run the async download function.
@@ -204,13 +206,13 @@ def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir:
     Args:
         images_data: List of tuples with card name and image URL to download
         image_dir: Directory to save the downloaded images
-    
+        skip_existing: If True, skip downloading images that already exist in the directory
     Returns:
         List of tuples with card name and image URL that failed to download
     """
-    return asyncio.run(_download_multiple_card_images(images_data, image_dir))
+    return asyncio.run(_download_multiple_card_images(images_data, image_dir, skip_existing))
 
-async def _download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR) -> list[tuple[str, str]]:
+async def _download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR, skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Uses async pattern to speed up the process.
@@ -218,12 +220,17 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]], ima
     Args:
         images_data: List of tuples with card name and image URL to download
         image_dir: Directory to save the downloaded images
+        skip_existing: If True, skip downloading images that already exist in the directory
     
     Returns:
         List of tuples with card name and image URL that failed to download
     """
     image_dir = Path(image_dir)
     image_dir.mkdir(parents=True, exist_ok=True)
+    if skip_existing:
+        existing_images = {file.stem for file in image_dir.glob("*.jpg")}
+        images_data = [(name, url) for name, url in images_data if name not in existing_images]
+        print(f"Skipping {len(existing_images)} existing images. Downloading {len(images_data)} new images...")
     conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_DOWNLOADS)
     async with aiohttp.ClientSession(connector=conn) as session:
         tasks = [_download_card_image(name, url, session, image_dir) for name, url in images_data]
