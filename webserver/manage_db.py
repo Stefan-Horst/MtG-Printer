@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from typing import Literal
 
 
 def create_database(db_path: str, schema_path: str, ignore_if_exists: bool = True) -> None:
@@ -48,24 +49,34 @@ class DatabaseManager:
     def close(self) -> None:
         self.conn.close()
         
-    def save_card_data(self, card: dict, commit: bool = True) -> None:
+    def save_card_data(self, card: dict, commit: bool = True, handle_exist: Literal["ignore", "replace", "fail"] = "ignore") -> None:
         """Save a single card into the database.
         
         Args:
             card: A dictionary containing the card data
             commit: Whether to commit the transaction
+            handle_exist: How to handle if the card already exists in the database.
+                "ignore": Do nothing and keep the existing card (default)
+                "replace": Replace the existing card with the new one
+                "fail": Raise an exception if the card already exists
         """
+        exist_clause = {
+            "ignore": "OR IGNORE ",
+            "replace": "OR REPLACE ",
+            "fail": "",
+        }[handle_exist]
+        
         if not self.cursor:
             self.create_cursor()
-        self._insert_card_into_db(card)
+        self._insert_card_into_db(card, exist_clause)
         if commit:
             self.commit()
 
-    def _insert_card_into_db(self, card: dict) -> None:
+    def _insert_card_into_db(self, card: dict, handle_exist_clause: str) -> None:
         card_id = card.get("id")
         # Insert main card data
-        self.cursor.execute("""
-            INSERT INTO cards (
+        self.cursor.execute(f"""
+            INSERT {handle_exist_clause}INTO cards (
                 id, oracle_id, arena_id, resource_id, name, lang, released_at, uri, 
                 scryfall_uri, layout, highres_image, image_status, mana_cost, cmc, 
                 type_line, oracle_text, power, toughness, defense, loyalty, rarity, 
@@ -150,8 +161,8 @@ class DatabaseManager:
         # Insert related data into junction tables
         if "card_faces" in card:
             for face in card["card_faces"]:
-                self.cursor.execute("""
-                    INSERT INTO card_faces (
+                self.cursor.execute(f"""
+                    INSERT {handle_exist_clause}INTO card_faces (
                         card_id, name, mana_cost, artist, artist_id, cmc, flavor_text, 
                         defense, power, toughness, loyalty, illustration_id, layout, 
                         oracle_id, oracle_text, printed_name, printed_text, 
@@ -182,68 +193,68 @@ class DatabaseManager:
         
         if "colors" in card:
             for color in card["colors"]:
-                self.cursor.execute("""INSERT INTO card_colors (card_id, color) 
-                                       VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_colors (card_id, color) 
+                                        VALUES (?, ?)""", (card_id, color))
         
         if "color_identities" in card:
             for color in card["color_identities"]:
-                self.cursor.execute("""INSERT INTO card_color_identities (card_id, color) 
-                                       VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_color_identities (card_id, color) 
+                                        VALUES (?, ?)""", (card_id, color))
         
         if "color_indicators" in card:
             for color in card["color_indicators"]:
-                self.cursor.execute("""INSERT INTO card_color_indicators (card_id, color) 
-                                       VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_color_indicators (card_id, color) 
+                                        VALUES (?, ?)""", (card_id, color))
         
         if "image_uris" in card:
             for type, uri in card["image_uris"].items():
-                self.cursor.execute("""INSERT INTO card_image_uris (card_id, type, uri) 
-                                       VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_image_uris (card_id, type, uri) 
+                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "artist_ids" in card:
             for artist_id in card["artist_ids"]:
-                self.cursor.execute("""INSERT INTO card_artist_ids (card_id, artist_id) 
-                                       VALUES (?, ?)""", (card_id, artist_id))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_artist_ids (card_id, artist_id) 
+                                        VALUES (?, ?)""", (card_id, artist_id))
         
         if "frame_effects" in card:
             for frame_effect in card["frame_effects"]:
-                self.cursor.execute("""INSERT INTO card_frame_effects (card_id, frame_effect) 
-                                       VALUES (?, ?)""", (card_id, frame_effect))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_frame_effects (card_id, frame_effect) 
+                                        VALUES (?, ?)""", (card_id, frame_effect))
         
         if "finishes" in card:
             for finish in card["finishes"]:
-                self.cursor.execute("""INSERT INTO card_finishes (card_id, finish) 
-                                       VALUES (?, ?)""", (card_id, finish))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_finishes (card_id, finish) 
+                                        VALUES (?, ?)""", (card_id, finish))
         
         if "produced_mana" in card:
             for color in card["produced_mana"]:
-                self.cursor.execute("""INSERT INTO card_produced_mana (card_id, color) 
-                                       VALUES (?, ?)""", (card_id, color))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_produced_mana (card_id, color) 
+                                        VALUES (?, ?)""", (card_id, color))
         
         if "legalities" in card:
             for format, status in card["legalities"].items():
-                self.cursor.execute("""INSERT INTO card_legalities (card_id, format, status) 
-                                       VALUES (?, ?, ?)""", (card_id, format, status))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_legalities (card_id, format, status) 
+                                        VALUES (?, ?, ?)""", (card_id, format, status))
         
         if "games" in card:
             for game in card["games"]:
-                self.cursor.execute("""INSERT INTO card_games (card_id, game) 
-                                       VALUES (?, ?)""", (card_id, game))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_games (card_id, game) 
+                                        VALUES (?, ?)""", (card_id, game))
         
         if "multiverse_ids" in card:
             for multiverse_id in card["multiverse_ids"]:
-                self.cursor.execute("""INSERT INTO card_multiverse_ids (card_id, multiverse_id) 
-                                       VALUES (?, ?)""", (card_id, multiverse_id))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_multiverse_ids (card_id, multiverse_id) 
+                                        VALUES (?, ?)""", (card_id, multiverse_id))
         
         if "keywords" in card:
             for keyword in card["keywords"]:
-                self.cursor.execute("""INSERT INTO card_keywords (card_id, keyword) 
-                                       VALUES (?, ?)""", (card_id, keyword))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_keywords (card_id, keyword) 
+                                        VALUES (?, ?)""", (card_id, keyword))
         
         if "all_parts" in card:
             for part in card["all_parts"]:
-                self.cursor.execute("""
-                    INSERT INTO card_all_parts (
+                self.cursor.execute(f"""
+                    INSERT {handle_exist_clause}INTO card_all_parts (
                         card_id, component, name, type_line, uri
                     ) VALUES (?, ?, ?, ?, ?)
                 """, (
@@ -257,23 +268,23 @@ class DatabaseManager:
         if "prices" in card:
             for type, price in card["prices"].items():
                 if price is not None:
-                    self.cursor.execute("""INSERT INTO card_prices (card_id, type, price) 
-                                           VALUES (?, ?, ?)""", (card_id, type, price))
+                    self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_prices (card_id, type, price) 
+                                            VALUES (?, ?, ?)""", (card_id, type, price))
         
         if "related_uris" in card:
             for type, uri in card["related_uris"].items():
-                self.cursor.execute("""INSERT INTO card_related_uris (card_id, type, uri) 
-                                       VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_related_uris (card_id, type, uri) 
+                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "purchase_uris" in card:
             for type, uri in card["purchase_uris"].items():
-                self.cursor.execute("""INSERT INTO card_purchase_uris (card_id, type, uri) 
-                                       VALUES (?, ?, ?)""", (card_id, type, uri))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_purchase_uris (card_id, type, uri) 
+                                        VALUES (?, ?, ?)""", (card_id, type, uri))
         
         if "previews" in card:
             preview = card["previews"]
-            self.cursor.execute("""
-                INSERT INTO card_previews (
+            self.cursor.execute(f"""
+                INSERT {handle_exist_clause}INTO card_previews (
                     card_id, source, source_uri, previewed_at
                 ) VALUES (?, ?, ?, ?)
             """, (
@@ -285,10 +296,10 @@ class DatabaseManager:
         
         if "promo_types" in card:
             for type in card["promo_types"]:
-                self.cursor.execute("""INSERT INTO card_promo_types (card_id, type) 
-                                       VALUES (?, ?)""", (card_id, type))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_promo_types (card_id, type) 
+                                        VALUES (?, ?)""", (card_id, type))
         
         if "attraction_lights" in card:
             for number in card["attraction_lights"]:
-                self.cursor.execute("""INSERT INTO card_attraction_lights (card_id, number) 
-                                       VALUES (?, ?)""", (card_id, number))
+                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_attraction_lights (card_id, number) 
+                                        VALUES (?, ?)""", (card_id, number))
