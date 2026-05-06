@@ -1,7 +1,7 @@
 from webserver.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images
 from webserver.manage_db import create_database, DatabaseManager
 
-IMAGE_DOWNLOAD_RETRIES = 10
+IMAGE_DOWNLOAD_RETRIES = 3
 
 def main():
     # Step 1: Download card data from Scryfall API and save to JSON file
@@ -11,7 +11,7 @@ def main():
         print("Failed to download card data from Scryfall. Trying again...")
         success = download_scryfall_data()
         if not success:
-            print("Failed to download card data from Scryfall again. Exiting.")
+            print("Failed to download card data from Scryfall again.\nExiting.")
             return
     print("Finished downloading card data.")
 
@@ -23,17 +23,30 @@ def main():
     for card_data in load_scryfall_card_data_chunks():
         try:
             db.save_card_data(card_data, commit=False)
-        except Exception as e:
-            print(f"### Error saving card data for {card_data.get('name', 'Unknown')}: {e}")
+        except Exception:
+            print(f"Failed to save card data for {card_data.get('name', 'Unknown')}. Trying again...")
+            try:
+                db.save_card_data(card_data, commit=False)
+            except Exception as e:
+                print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}")
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        print("Failed to commit changes to database. Trying again...")
+        try:
+            db.commit()
+        except Exception as e:
+            print(f"Failed to commit changes to database: {e}\nExiting.")
+            db.close()
+            return
     db.close()
     
     # Step 3: Download card images based on the downloaded card data
     print("=> Downloading card images...")
     failed_downloads = download_multiple_card_images(file_image_data)
-    print(f"\nFinished downloading images. {len(failed_downloads)} failed downloads.")
+    print(f"Finished downloading images. {len(failed_downloads)} failed downloads.")
     for i in range(IMAGE_DOWNLOAD_RETRIES):
         if failed_downloads:
             print(f"Retrying failed downloads (attempt {i + 1}/{IMAGE_DOWNLOAD_RETRIES})...")
