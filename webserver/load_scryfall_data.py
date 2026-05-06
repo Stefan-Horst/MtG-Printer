@@ -23,7 +23,8 @@ SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
 TIMEOUT = 20 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
-MAX_CONCURRENT_DOWNLOADS = 50 # limit for concurrent image downloads
+MAX_CONCURRENT_DOWNLOADS = 100 # limit for concurrent image downloads
+IMAGES_BATCH_SIZE = 500 # number of images to download at once in the async function
 
 ### JSON CARD DATA FILE LOADING
 
@@ -198,27 +199,35 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, 
         file_image_data.extend(image_urls)
     return download_multiple_card_images(file_image_data, skip_existing=skip_existing)
 
-def download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR, skip_existing: bool = True) -> list[tuple[str, str]]:
+def download_multiple_card_images(images_data: list[tuple[str, str]], 
+                                  batch_size: int = IMAGES_BATCH_SIZE, 
+                                  image_dir: str = IMAGE_DIR, 
+                                  skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Wrapper function to run the async download function.
     
     Args:
         images_data: List of tuples with card name and image URL to download
+        batch_size: Number of images to download at once (used for batching in the async function)
         image_dir: Directory to save the downloaded images
         skip_existing: If True, skip downloading images that already exist in the directory
     Returns:
         List of tuples with card name and image URL that failed to download
     """
-    return asyncio.run(_download_multiple_card_images(images_data, image_dir, skip_existing))
+    return asyncio.run(_download_multiple_card_images(images_data, batch_size, image_dir, skip_existing))
 
-async def _download_multiple_card_images(images_data: list[tuple[str, str]], image_dir: str = IMAGE_DIR, skip_existing: bool = True) -> list[tuple[str, str]]:
+async def _download_multiple_card_images(images_data: list[tuple[str, str]], 
+                                         batch_size: int = IMAGES_BATCH_SIZE, 
+                                         image_dir: str = IMAGE_DIR, 
+                                         skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Uses async pattern to speed up the process.
     
     Args:
         images_data: List of tuples with card name and image URL to download
+        batch_size: Number of images to download at once (used for batching in the async function)
         image_dir: Directory to save the downloaded images
         skip_existing: If True, skip downloading images that already exist in the directory
     
@@ -231,11 +240,18 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]], ima
         existing_images = {file.stem for file in image_dir.glob("*.jpg")}
         images_data = [(name, url) for name, url in images_data if name not in existing_images]
         print(f"Skipping {len(existing_images)} existing images. Downloading {len(images_data)} new images...")
-    conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_DOWNLOADS)
+    failed_downloads = []
+    conn = aiohttp.TCPConnector(limit_per_host=MAX_CONCURRENT_DOWNLOADS)
     async with aiohttp.ClientSession(connector=conn) as session:
-        tasks = [_download_card_image(name, url, session, image_dir) for name, url in images_data]
-        results = await asyncio.gather(*tasks)
-    failed_downloads = [result for result in results if result != (None, None)]
+        batch_amount = (len(images_data) + batch_size - 1) // batch_size
+        for i in range(0, len(images_data), batch_size):
+            print(f"Downloading image batch {i//batch_size + 1}/{batch_amount}...")
+            chunk = images_data[i:i+batch_size]
+            tasks = [_download_card_image(name, url, session, image_dir) for name, url in chunk]
+            results = await asyncio.gather(*tasks)
+            fails = [result for result in results if result != (None, None)]
+            print(f"Finished downloading batch. {len(fails)} failed downloads.")
+            failed_downloads.extend(fails)
     return failed_downloads
 
 async def _download_card_image(name: str, image_url: str, session: aiohttp.ClientSession, image_dir: str = IMAGE_DIR) -> tuple[str, str]:
@@ -256,8 +272,8 @@ async def _download_card_image(name: str, image_url: str, session: aiohttp.Clien
         async with session.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT, raise_for_status=True) as response:
             content = await response.read()
     except Exception as e:
-        exception_info = str(e) if len(str(e)) > 0 else "Unknown error"
-        print(f"Failed to download image for {name}: {exception_info}")
+        if len(str(e)) > 0:
+            print(f"Failed to download image for {name}: {str(e)}")
         return (name, image_url)
     name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
     image = Image.open(BytesIO(content))
