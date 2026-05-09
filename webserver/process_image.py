@@ -7,23 +7,29 @@ BLACK_WHITE_THRESHOLD = 128
 PRINTER_IMAGE_DIR = "./images/printer_images"
 
 
-def process_all_images(image_dir: str = IMAGE_DIR, output_dir: str = PRINTER_IMAGE_DIR):
+def process_all_images(image_dir: str = IMAGE_DIR, 
+                       output_dir: str = PRINTER_IMAGE_DIR, 
+                       skip_existing: bool = True):
     """
     Process all images in the specified directory and save the results separately.
 
     Args:
         image_dir: directory containing the source images
         output_dir: directory for the processed images
+        skip_existing: whether to skip processing if the output file already exists
     """
     input_path = Path(image_dir)
     for image_file in input_path.iterdir():
         if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
             try:
-                process_image(image_file.name, image_dir, output_dir)
+                process_image(image_file.name, image_dir, output_dir, skip_existing)
             except Exception as e:
                 print(f"Failed to process image '{image_file.name}': {e}")
 
-def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = PRINTER_IMAGE_DIR) -> Image:
+def process_image(filename: str, 
+                  image_dir: str = IMAGE_DIR, 
+                  output_dir: str = PRINTER_IMAGE_DIR, 
+                  skip_existing: bool = True) -> Image:
     """
     Load an image file, turn it into a high-contrast black & white
     version optimized for printing and save the result separately.
@@ -32,6 +38,7 @@ def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = P
         filename: name of the image file to process
         image_dir: directory containing the source images
         output_dir: directory for the processed images; if None, the image will not be saved
+        skip_existing: whether to skip processing if the output file already exists
 
     Returns:
         Image: the processed image
@@ -50,5 +57,6 @@ def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = P
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         output_file = output_path / filename
-        bw.save(output_file)
+        if not skip_existing or not output_file.exists():
+            bw.save(output_file)
     return bw
