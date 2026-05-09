@@ -3,7 +3,15 @@ from pathlib import Path
 from typing import Literal
 
 
-def create_database(db_path: str, schema_path: str, ignore_if_exists: bool = True) -> None:
+DB_DIR = "./data/db"
+DB_FILE = "cards.db"
+SCHEMA_DIR = "./db_init_scripts"
+SCHEMA_FILE = "create_cards_db.sql"
+
+
+def create_database(db_path: str = DB_DIR+"/"+DB_FILE, 
+                    schema_path: str = SCHEMA_DIR+"/"+SCHEMA_FILE, 
+                    ignore_if_exists: bool = True) -> None:
     """Create a SQLite database from a SQL schema file.
     
     Args:
@@ -28,7 +36,7 @@ def create_database(db_path: str, schema_path: str, ignore_if_exists: bool = Tru
 class DatabaseManager:
     """A class to manage database connections and operations for the card data."""
     
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str = DB_DIR+"/"+DB_FILE):
         """Initialize a new DatabaseManager instance.
         
         Args:

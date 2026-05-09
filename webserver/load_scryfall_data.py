@@ -10,8 +10,8 @@ from splitstream import splitfile
 from PIL import Image
 
 
-IMAGE_DIR = "./card_images"
-DATA_DIR = "./card_data"
+IMAGE_DIR = "./data/images/card_images"
+DATA_DIR = "./data/card_data"
 METADATA_FILE = "metadata.json"
 DATA_FILE = "cards.json"
 

@@ -4,7 +4,7 @@ from webserver.load_scryfall_data import IMAGE_DIR
 
 
 BLACK_WHITE_THRESHOLD = 128
-PRINTER_IMAGE_DIR = "./images/printer_images"
+PRINTER_IMAGE_DIR = "./data/images/printer_images"
 
 
 def process_all_images(image_dir: str = IMAGE_DIR, 
