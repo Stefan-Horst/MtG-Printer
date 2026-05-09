@@ -1,6 +1,6 @@
 from pathlib import Path
 from PIL import Image, ImageOps
-from webserver.load_scryfall_data import IMAGE_DIR
+from card_handling.load_scryfall_data import IMAGE_DIR
 
 
 BLACK_WHITE_THRESHOLD = 128

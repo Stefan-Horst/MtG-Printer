@@ -1,5 +1,6 @@
-from webserver.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images
-from webserver.manage_db import create_database, DatabaseManager
+from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images
+from card_handling.manage_db import create_database, DatabaseManager
+from card_handling.process_image import process_all_images
 
 IMAGE_DOWNLOAD_RETRIES = 3
 
