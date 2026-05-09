@@ -3,7 +3,7 @@ import timeit
 from io import BytesIO
 import aiohttp
 from PIL import Image
-from webserver.load_scryfall_data import load_scryfall_card_data_chunks, get_card_image_urls, SCRYFALL_HEADERS, TIMEOUT, IMAGE_DIR
+from card_handling.load_scryfall_data import load_scryfall_card_data_chunks, get_card_image_urls, SCRYFALL_HEADERS, TIMEOUT, IMAGE_DIR
 
 MAX_CONCURRENT_DOWNLOADS = 50
 

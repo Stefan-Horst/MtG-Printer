@@ -1,5 +1,5 @@
-from webserver.manage_db import create_database, DatabaseManager
-from webserver.load_scryfall_data import load_scryfall_card_data_chunks
+from card_handling.manage_db import create_database, DatabaseManager
+from card_handling.load_scryfall_data import load_scryfall_card_data_chunks
 
 
 create_database("cards.db", "webserver/create_db.sql", ignore_if_exists=False)
