@@ -31,7 +31,7 @@ def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = P
     Args:
         filename: name of the image file to process
         image_dir: directory containing the source images
-        output_dir: directory for the processed images
+        output_dir: directory for the processed images; if None, the image will not be saved
 
     Returns:
         Image: the processed image
@@ -46,8 +46,9 @@ def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = P
     # threshold to pure black/white
     bw = gray.point(lambda x: 0 if x < BLACK_WHITE_THRESHOLD else 255, "1")
 
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    output_file = output_path / filename
-    bw.save(output_file)
+    if output_dir:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        output_file = output_path / filename
+        bw.save(output_file)
     return bw
