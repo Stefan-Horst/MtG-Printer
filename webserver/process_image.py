@@ -4,17 +4,37 @@ from webserver.load_scryfall_data import IMAGE_DIR
 
 
 BLACK_WHITE_THRESHOLD = 128
-PRINTER_IMAGE_DIR = "./printer_images"
+PRINTER_IMAGE_DIR = "./images/printer_images"
 
+
+def process_all_images(image_dir: str = IMAGE_DIR, output_dir: str = PRINTER_IMAGE_DIR):
+    """
+    Process all images in the specified directory and save the results separately.
+
+    Args:
+        image_dir: directory containing the source images
+        output_dir: directory for the processed images
+    """
+    input_path = Path(image_dir)
+    for image_file in input_path.iterdir():
+        if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+            try:
+                process_image(image_file.name, image_dir, output_dir)
+            except Exception as e:
+                print(f"Failed to process image '{image_file.name}': {e}")
 
 def process_image(filename: str, image_dir: str = IMAGE_DIR, output_dir: str = PRINTER_IMAGE_DIR) -> Image:
     """
     Load an image file, turn it into a high-contrast black & white
     version optimized for printing and save the result separately.
 
-    :param input_path: filename or path of the source image
-    :param output_path: filename or path for the processed image (optional)
-    :return: path of the saved modified image
+    Args:
+        filename: name of the image file to process
+        image_dir: directory containing the source images
+        output_dir: directory for the processed images
+
+    Returns:
+        Image: the processed image
     """
     input_file = Path(image_dir) / filename
     img = Image.open(input_file)
