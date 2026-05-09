@@ -59,6 +59,18 @@ def main():
     if failed_downloads:
         print(f"Failed to download images for {len(failed_downloads)} cards. Moving on...")
     
+    # Step 4: Process downloaded images (turn into high-contrast black & white versions)
+    print("=> Processing card images...")
+    try:
+        process_all_images()
+    except Exception:
+        print("Failed to process images. Trying again...")
+        try:
+            process_all_images()
+        except Exception as e:
+            print(f"Failed to process images: {e}\nExiting.")
+            return
+    
     print("All steps completed. Exiting...")
 
 
