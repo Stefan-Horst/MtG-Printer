@@ -2,7 +2,7 @@ import asyncio
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageOps
-import aiofiles
+import aiofile
 from card_handling.load_scryfall_data import IMAGE_DIR
 
 
@@ -95,13 +95,13 @@ async def process_image(file: str,
                 buffer = BytesIO()
                 bw.save(buffer, format=IMAGE_EXTENSION[1:])
                 try:
-                    async with aiofiles.open(output_file, "wb") as f:
+                    async with aiofile.async_open(output_file, "wb") as f:
                         await f.write(buffer.getbuffer())
                 except Exception:
                     Path(output_file).unlink(missing_ok=True)
                     print(f"Failed to save image for {filename}. Trying again...")
                     try:
-                        async with aiofiles.open(output_file, "wb") as f:
+                        async with aiofile.async_open(output_file, "wb") as f:
                             await f.write(buffer.getbuffer())
                     except Exception as e:
                         Path(output_file).unlink(missing_ok=True)
