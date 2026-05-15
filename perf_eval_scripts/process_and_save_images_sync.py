@@ -1,0 +1,56 @@
+from io import BytesIO
+from pathlib import Path
+from PIL import Image, ImageOps
+import timeit
+from card_handling.process_image import BLACK_WHITE_THRESHOLD, PRINTER_IMAGE_DIR, IMAGE_DIR
+
+IMAGE_EXTENSION = ".png"
+
+progress = 0
+
+def process_all_images(image_dir: str = IMAGE_DIR, 
+                             output_dir: str = PRINTER_IMAGE_DIR, 
+                             skip_existing: bool = True):
+    input_path = Path(image_dir)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)    
+    for image_file in input_path.iterdir():
+        if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]:
+            process_image(image_file.name, image_dir, output_dir, skip_existing) 
+
+def process_image(file: str, 
+                        image_dir: str = IMAGE_DIR, 
+                        output_dir: str = PRINTER_IMAGE_DIR, 
+                        skip_existing: bool = True) -> None:
+    input_file = Path(image_dir) / file
+    img = Image.open(input_file)
+    filename = input_file.stem
+    
+    # convert to grayscale
+    gray = img.convert("L")
+    # increase contrast
+    gray = ImageOps.autocontrast(gray)
+    # threshold to pure black/white
+    bw = gray.point(lambda x: 0 if x < BLACK_WHITE_THRESHOLD else 255, "1")
+    
+    if output_dir:
+        output_path = Path(output_dir)
+        output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
+        if not skip_existing or not output_file.exists():
+            try:
+                with open(output_file, "wb") as f:
+                    bw.save(f, format=IMAGE_EXTENSION[1:])
+            except Exception:
+                Path(output_file).unlink(missing_ok=True)
+    
+    global progress
+    progress += 1
+    print("\b" * len(str(progress)), end="")
+    print(str(progress), end="", flush=True)
+
+
+print("0", end="", flush=True)
+start_time = timeit.default_timer()
+process_all_images()
+end_time = timeit.default_timer()
+print(f"\nProcessed images in {end_time - start_time:.4f} seconds")
