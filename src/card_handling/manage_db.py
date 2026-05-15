@@ -9,23 +9,28 @@ SCHEMA_DIR = "./db_init_scripts"
 SCHEMA_FILE = "create_cards_db.sql"
 
 
-def create_database(db_path: str = DB_DIR+"/"+DB_FILE, 
+def create_database(db_dir: str = DB_DIR, 
+                    filename: str = DB_FILE, 
                     schema_path: str = SCHEMA_DIR+"/"+SCHEMA_FILE, 
                     ignore_if_exists: bool = True) -> None:
     """Create a SQLite database from a SQL schema file.
     
     Args:
-        db_path: Path to the database file to create
+        db_dir: Directory where the database file will be created
+        filename: Name of the database file to create
         schema_path: Path to the SQL schema file
         ignore_if_exists: If True, do nothing if the db already exists. If False, delete the db and create a new one.
     """
-    if Path(db_path).exists():
+    db_path = Path(db_dir)
+    db_path.mkdir(parents=True, exist_ok=True)
+    db_file = db_path / filename
+    if db_file.exists():
         if ignore_if_exists:
             return # executing code below would raise an exception
         else:
-            Path(db_path).unlink() # delete existing db to create a new one
+            db_file.unlink() # delete existing db to create a new one
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_file)
     with open(schema_path, "r") as f:
         schema = f.read()
     conn.executescript(schema)

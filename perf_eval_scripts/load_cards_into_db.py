@@ -2,8 +2,8 @@ from card_handling.manage_db import create_database, DatabaseManager
 from card_handling.load_scryfall_data import load_scryfall_card_data_chunks
 
 
-create_database("cards.db", "webserver/create_db.sql", ignore_if_exists=False)
-db = DatabaseManager("cards.db")
+create_database(ignore_if_exists=False)
+db = DatabaseManager()
 for card_data in load_scryfall_card_data_chunks("data.json"):
     if ((card_data["layout"] in ["art_series", "scheme", "vanguard", "planar", "double_faced_token"]) 
         or card_data["border_color"] == "silver" 
