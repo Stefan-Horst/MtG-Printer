@@ -11,6 +11,8 @@ IMAGE_EXTENSION = ".png"
 MAX_CONCURRENT_TASKS = 100
 BLACK_WHITE_THRESHOLD = 128
 
+DEVICE_WIDTH = 384 # width of the printer in pixels
+
 
 def process_all_images(image_dir: str = IMAGE_DIR, 
                        output_dir: str = PRINTER_IMAGE_DIR, 
@@ -69,9 +71,13 @@ async def process_image(file: str,
     sem = sem or nullcontext() # without sempahore use placeholder context manager that does nothing
     async with sem:
         input_file = Path(image_dir) / file
+        filename = input_file.stem
         try:
             img = Image.open(input_file)
-            filename = input_file.stem
+            # resize to fit the printer
+            ratio = img.size[0] / img.size[1]
+            new_height = int(DEVICE_WIDTH / ratio)
+            img = img.resize((DEVICE_WIDTH, new_height))
             # convert to grayscale
             gray = img.convert("L")
             # increase contrast
