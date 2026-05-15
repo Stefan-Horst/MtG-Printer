@@ -4,7 +4,7 @@ from contextlib import nullcontext
 from PIL import Image, ImageOps
 import asyncio
 import timeit
-import aiofiles
+import aiofile
 from card_handling.process_image import BLACK_WHITE_THRESHOLD, PRINTER_IMAGE_DIR, IMAGE_DIR
 
 IMAGE_EXTENSION = ".png"
@@ -49,7 +49,7 @@ async def process_image(file: str,
                 buffer = BytesIO()
                 bw.save(buffer, format=IMAGE_EXTENSION[1:])
                 try:
-                    async with aiofiles.open(output_file, "wb") as f:
+                    async with aiofile.async_open(output_file, "wb") as f:
                         await f.write(buffer.getbuffer())
                 except Exception:
                     Path(output_file).unlink(missing_ok=True)
