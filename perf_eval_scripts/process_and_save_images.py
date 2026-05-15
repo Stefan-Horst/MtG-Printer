@@ -5,7 +5,7 @@ from PIL import Image, ImageOps
 import asyncio
 import timeit
 import aiofile
-from card_handling.process_image import BLACK_WHITE_THRESHOLD, PRINTER_IMAGE_DIR, IMAGE_DIR
+from card_handling.process_image import BLACK_WHITE_THRESHOLD, DEVICE_WIDTH, PRINTER_IMAGE_DIR, IMAGE_DIR
 
 IMAGE_EXTENSION = ".png"
 MAX_CONCURRENT_TASKS = 100
@@ -32,15 +32,22 @@ async def process_image(file: str,
     sem = sem or nullcontext() # without sempahore use placeholder context manager that does nothing
     async with sem:
         input_file = Path(image_dir) / file
-        img = Image.open(input_file)
         filename = input_file.stem
-        
-        # convert to grayscale
-        gray = img.convert("L")
-        # increase contrast
-        gray = ImageOps.autocontrast(gray)
-        # threshold to pure black/white
-        bw = gray.point(lambda x: 0 if x < BLACK_WHITE_THRESHOLD else 255, "1")
+        try:
+            img = Image.open(input_file)
+            # resize to fit the printer
+            ratio = img.size[0] / img.size[1]
+            new_height = int(DEVICE_WIDTH / ratio)
+            img = img.resize((DEVICE_WIDTH, new_height))
+            # convert to grayscale
+            gray = img.convert("L")
+            # increase contrast
+            gray = ImageOps.autocontrast(gray)
+            # threshold to pure black/white
+            bw = gray.point(lambda x: 0 if x < BLACK_WHITE_THRESHOLD else 255, "1")
+        except Exception as e:
+            print(f"Failed to process image for {filename}: {e}")
+            return None
         
         if output_dir:
             output_path = Path(output_dir)
