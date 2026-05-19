@@ -21,12 +21,12 @@ class ButtonHandler:
         self.last_button_press = 0
         self.state = ButtonState.IDLE
     
-    def press_callback(self, channel) -> None:
+    def press_callback(self, _) -> None:
         """Callback function to handle button press events. Must be called with 
         GPIO event detection on press and used together with release_callback."""
         self.last_button_press = time.time()
     
-    def release_callback(self, channel) -> None:
+    def release_callback(self, _) -> None:
         """Callback function to handle button release events. Must be called with 
         GPIO event detection on release and used together with press_callback."""
         if self.state == ButtonState.IDLE:
@@ -71,7 +71,7 @@ class RotaryEncoderHandler(ButtonHandler):
         self.rotary_state = RotaryState.IDLE
         self.blocked = False
     
-    def rotary_clk_callback(self, channel) -> None:
+    def rotary_clk_callback(self, _) -> None:
         """Callback function to handle rotary encoder CLK pin events. 
         Must be called with GPIO event detection and used together with DT."""
         self.last_clk_trigger = time.time()
@@ -82,7 +82,7 @@ class RotaryEncoderHandler(ButtonHandler):
                 self.rotary_state = RotaryState.LEFT
             self.blocked = True
     
-    def rotary_dt_callback(self, channel) -> None:
+    def rotary_dt_callback(self, _) -> None:
         """Callback function to handle rotary encoder DT pin events. 
         Must be called with GPIO event detection and used together with CLK."""
         self.last_dt_trigger = time.time()
