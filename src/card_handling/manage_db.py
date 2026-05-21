@@ -59,6 +59,24 @@ class DatabaseManager:
         self.conn.commit()
         self.cursor = None
     
+    def execute_query(self, query: str, params: tuple = (), commit: bool = False) -> list[tuple]:
+        """Execute a SQL query with optional parameters and commit.
+        
+        Args:
+            query: The SQL query to execute, with ? placeholders for parameters
+            params: A tuple of parameters to substitute into the query
+            commit: Whether to commit the transaction after executing the query
+        
+        Returns:
+            A list of tuples representing the rows returned by the query (if any)
+        """
+        if not self.cursor:
+            self.create_cursor()
+        self.cursor.execute(query, params)
+        if commit:
+            self.commit()
+        return self.cursor.fetchall()
+    
     def close(self) -> None:
         self.conn.close()
         
