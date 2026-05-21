@@ -3,6 +3,7 @@ from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
 from card_handling.process_image import PRINTER_IMAGE_DIR
+from card_handling.load_scryfall_data import ALLOWED_CARDS
 
 
 def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
@@ -21,4 +22,13 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
     if not result:
         raise ValueError("No matching creature card found")
     image_name = random.choice(result)[0]
+    return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
+
+def get_momir_avatar_card() -> Image:
+    """Get the Momir avatar card printer image from the database.
+    
+    Returns:
+        Image: A PIL Image object representing the card printer image.
+    """
+    image_name = ALLOWED_CARDS[0]
     return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
