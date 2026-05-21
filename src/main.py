@@ -12,6 +12,7 @@ from card_handling.process_image import process_all_images
 IMAGE_DOWNLOAD_RETRIES = 3
 ROTARY_MAX_VALUE = 16 # maximum possible mana cost
 ROTARY_MIN_VALUE = 0  # minimum possible mana cost
+SKIP_VALUES = [14]    # mana values with no creature cards
 
 
 ### INIT AND CHECK HARDWARE COMPONENTS
@@ -109,15 +110,19 @@ while True:
         break # exit program and trigger shutdown
     
     # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
-    # the value wraps around if it would exceed the specified min and max values
+    # the value wraps around if it would exceed the specified min and max values and specified values are skipped
     rotary_state = rotary_encoder_handler.get_rotary_state()
     if rotary_state == RotaryState.RIGHT:
         rotary_value += 1
+        if rotary_value in SKIP_VALUES:
+            rotary_value += 1
         if rotary_value > ROTARY_MAX_VALUE:
             rotary_value = ROTARY_MIN_VALUE
         rotary_encoder_handler.reset_rotary()
     elif rotary_state == RotaryState.LEFT:
         rotary_value -= 1
+        if rotary_value in SKIP_VALUES:
+            rotary_value -= 1
         if rotary_value < ROTARY_MIN_VALUE:
             rotary_value = ROTARY_MAX_VALUE
         rotary_encoder_handler.reset_rotary()
