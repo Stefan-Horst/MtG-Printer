@@ -1,3 +1,4 @@
+import random
 from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
@@ -14,10 +15,10 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
         Image: A PIL Image object representing the card printer image.
     """
     result = db.execute_query(
-        "SELECT name FROM cards WHERE type_line LIKE ? AND mana_cost = ?", 
+        "SELECT name FROM cards WHERE type_line LIKE ? AND cmc = ?", 
         ("%Creature%", mana_cost)
     )
     if not result:
         raise ValueError("No matching creature card found")
-    image_name = result[0][0]
+    image_name = random.choice(result)[0]
     return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")

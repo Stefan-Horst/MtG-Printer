@@ -10,6 +10,8 @@ from splitstream import splitfile
 from PIL import Image
 
 
+ALLOWED_CARDS = ["Momir Vig, Simic Visionary Avatar"] # whitelisted cards to download even if they would not pass the validity filter
+
 IMAGE_DIR = "./data/card_images/raw"
 DATA_DIR = "./data/card_data"
 METADATA_FILE = "metadata.json"
@@ -56,7 +58,8 @@ def _is_card_valid(card_data: dict) -> bool:
     Returns:
         True if the card is valid for printing, False otherwise
     """
-
+    if card_data["name"] in ALLOWED_CARDS:
+        return True
     if (# cards not legal in any format
         "legal" not in card_data["legalities"].values() 
         # card types not played in any normal format
