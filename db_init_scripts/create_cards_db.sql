@@ -8,7 +8,7 @@ CREATE TABLE cards (
     oracle_id TEXT,
     arena_id INTEGER,
     resource_id TEXT,
-    name TEXT NOT NULL,
+    name TEXT NOT NULL UNIQUE, -- Card names are unique (in theory), business logic relies on this
     lang TEXT NOT NULL,
     released_at TEXT NOT NULL,
     uri TEXT NOT NULL,
