@@ -46,8 +46,8 @@ def add_rotary_callbacks(rotary_clk_callback: Callable[[int], None],
     GPIO.add_event_detect(ROTARY_SW, GPIO.FALLING, callback=press_callback, bouncetime=BUTTON_BOUNCETIME)
     GPIO.add_event_detect(ROTARY_SW, GPIO.RISING, callback=release_callback, bouncetime=BUTTON_BOUNCETIME)
 
-def switch_button_led(on: bool = True) -> None:
-    """Activate the button LED. Must be called to turn on the LED.
+def toggle_button_led(on: bool = True) -> None:
+    """Toggle the button LED on and off.
     
     Args:
         on: If True, turn on the LED. If False, turn off the LED.

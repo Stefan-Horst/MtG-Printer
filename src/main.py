@@ -1,6 +1,7 @@
 import sys
 import subprocess
 
+import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
@@ -18,11 +19,19 @@ SKIP_VALUES = [14]    # mana values with no creature cards
 ### INIT AND CHECK HARDWARE COMPONENTS
 
 print("=> Initializing hardware components...")
-try: 
+try:
+    gpio.setup_gpio()
+    gpio.toggle_button_led(True) # turn on LED to indicate that the program is running
     display = DisplayManager()
     printer = PrinterManager()
     button_handler = ButtonHandler()
+    gpio.add_button_callbacks(button_handler.press_callback, 
+                              button_handler.release_callback)
     rotary_encoder_handler = RotaryEncoderHandler()
+    gpio.add_rotary_callbacks(rotary_encoder_handler.rotary_clk_callback, 
+                              rotary_encoder_handler.rotary_dt_callback, 
+                              rotary_encoder_handler.press_callback, 
+                              rotary_encoder_handler.release_callback)
 except Exception as e:
     print(f"Failed to initialize hardware components: {e}")
     sys.exit(1)
@@ -141,10 +150,11 @@ while True:
 ### CLEANUP
 
 print("=> Shutdown requested. Exiting...")
-
-# close gpio
+# Close hardware components and database connection before exiting
 db.close()
 display.close()
 printer.close()
+gpio.close()
 
+# Trigger system shutdown
 subprocess.run(["shutdown"])
