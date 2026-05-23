@@ -3,7 +3,7 @@ from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
 from card_handling.process_image import PRINTER_IMAGE_DIR
-from card_handling.load_scryfall_data import ALLOWED_CARDS
+from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME
 
 
 def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
@@ -30,7 +30,7 @@ def get_momir_avatar_card() -> Image:
     Returns:
         Image: A PIL Image object representing the card printer image.
     """
-    image_name = ALLOWED_CARDS[0]
+    image_name = MOMIR_AVATAR_NAME
     return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
 
 def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
@@ -49,3 +49,13 @@ def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
     if not result:
         raise ValueError("Card not found in database")
     return result[0][0]
+
+def get_momir_avatar_oracle_text(db: DatabaseManager) -> str:
+    """Get the oracle text of the Momir avatar card from the database.
+    
+    Args:
+        db: An instance of the DatabaseManager to query the database.
+    Returns:
+        str: The oracle text of the Momir avatar card.
+    """
+    return get_card_oracle_text(MOMIR_AVATAR_NAME, db)
