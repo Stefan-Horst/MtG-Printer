@@ -31,7 +31,12 @@ def setup_gpio() -> None:
 def add_button_callbacks(press_callback: Callable[[int], None], 
                          release_callback: Callable[[int], None]) -> None:
     """Add a callback functions to handle button events. The callbacks must be 
-    called with GPIO event detection on press and release and used together."""
+    called with GPIO event detection on press and release and used together.
+    
+    Args:
+        press_callback: Callback function to handle button press events.
+        release_callback: Callback function to handle button release events.
+    """
     GPIO.add_event_detect(BUTTON_PIN, GPIO.FALLING, callback=press_callback, bouncetime=BUTTON_BOUNCETIME)
     GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=release_callback, bouncetime=BUTTON_BOUNCETIME)
 
@@ -40,7 +45,14 @@ def add_rotary_callbacks(rotary_clk_callback: Callable[[int], None],
                          press_callback: Callable[[int], None], 
                          release_callback: Callable[[int], None]) -> None:
     """Add callback functions to handle rotary encoder events. The callbacks 
-    must be called with GPIO event detection and used together."""
+    must be called with GPIO event detection and used together.
+    
+    Args:
+        rotary_clk_callback: Callback function to handle rotary encoder CLK pin events.
+        rotary_dt_callback: Callback function to handle rotary encoder DT pin events.
+        press_callback: Callback function to handle button press events.
+        release_callback: Callback function to handle button release events.
+    """
     GPIO.add_event_detect(ROTARY_CLK, GPIO.BOTH, callback=rotary_clk_callback, bouncetime=ROTARY_BOUNCETIME)
     GPIO.add_event_detect(ROTARY_DT, GPIO.BOTH, callback=rotary_dt_callback, bouncetime=ROTARY_BOUNCETIME)
     GPIO.add_event_detect(ROTARY_SW, GPIO.FALLING, callback=press_callback, bouncetime=BUTTON_BOUNCETIME)
