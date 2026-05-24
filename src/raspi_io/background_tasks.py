@@ -1,7 +1,7 @@
 from threading import Event, Thread
 import time
 
-from gpio import toggle_button_led
+from raspi_io.gpio import toggle_button_led
 
 
 toggle_led_event = Event()
