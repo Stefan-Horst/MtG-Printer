@@ -25,13 +25,11 @@ try:
     display = DisplayManager()
     printer = PrinterManager()
     button_handler = ButtonHandler()
-    gpio.add_button_callbacks(button_handler.press_callback, 
-                              button_handler.release_callback)
+    gpio.add_button_callback(button_handler.button_callback)
     rotary_encoder_handler = RotaryEncoderHandler()
     gpio.add_rotary_callbacks(rotary_encoder_handler.rotary_clk_callback, 
                               rotary_encoder_handler.rotary_dt_callback, 
-                              rotary_encoder_handler.press_callback, 
-                              rotary_encoder_handler.release_callback)
+                              rotary_encoder_handler.button_callback)
 except Exception as e:
     print(f"Failed to initialize hardware components: {e}")
     sys.exit(1)
