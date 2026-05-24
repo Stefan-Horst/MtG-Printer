@@ -28,12 +28,25 @@ class ButtonHandler:
         self.blocked = False
         self.lock = Lock()
     
-    def press_callback(self, _) -> None:
+    def button_callback(self, _, pin_input) -> None:
+        """Callback function to handle button events. Must be called with GPIO event detection 
+        on both press and release. RPi.GPIO can only handle a single callback per pin and 
+        therefore this function acts as a wrapper for the press and release callbacks.
+        
+        Args:
+            pin_input: 0 for press, 1 for release.
+        """
+        if pin_input == 0:
+            self._press_callback(_)
+        else:
+            self._release_callback(_)
+    
+    def _press_callback(self, _) -> None:
         """Callback function to handle button press events. Must be called with 
         GPIO event detection on press and used together with release_callback."""
         self.last_button_press = time.time()
     
-    def release_callback(self, _) -> None:
+    def _release_callback(self, _) -> None:
         """Callback function to handle button release events. Must be called with 
         GPIO event detection on release and used together with press_callback."""
         self.last_button_release = time.time()
