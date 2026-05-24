@@ -98,6 +98,7 @@ class RotaryEncoderHandler(ButtonHandler):
         self.rotary_state = RotaryState.IDLE
         self.rotary_blocked = False
         self.lock_re = Lock()
+        super().__init__()
     
     def rotary_clk_callback(self, _) -> None:
         """Callback function to handle rotary encoder CLK pin events. 
