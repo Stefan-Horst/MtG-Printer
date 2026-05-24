@@ -28,35 +28,31 @@ def setup_gpio() -> None:
     GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(BUTTON_LED, GPIO.OUT)
 
-def add_button_callbacks(press_callback: Callable[[int], None], 
-                         release_callback: Callable[[int], None]) -> None:
-    """Add a callback functions to handle button events. The callbacks must be 
-    called with GPIO event detection on press and release and used together.
+def add_button_callback(button_callback: Callable[[int], None]) -> None:
+    """Add a callback function to handle button events. The callback 
+    must be called with GPIO event detection on press and release.
     
     Args:
-        press_callback: Callback function to handle button press events.
-        release_callback: Callback function to handle button release events.
+        button_callback: Callback function to handle button events.
     """
-    GPIO.add_event_detect(BUTTON_PIN, GPIO.FALLING, callback=press_callback, bouncetime=BUTTON_BOUNCETIME)
-    GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=release_callback, bouncetime=BUTTON_BOUNCETIME)
+    button_input = GPIO.input(BUTTON_PIN)
+    GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=lambda x: button_callback(button_input), bouncetime=BUTTON_BOUNCETIME)
 
 def add_rotary_callbacks(rotary_clk_callback: Callable[[int], None], 
                          rotary_dt_callback: Callable[[int], None], 
-                         press_callback: Callable[[int], None], 
-                         release_callback: Callable[[int], None]) -> None:
+                         button_callback: Callable[[int], None]) -> None:
     """Add callback functions to handle rotary encoder events. The callbacks 
     must be called with GPIO event detection and used together.
     
     Args:
         rotary_clk_callback: Callback function to handle rotary encoder CLK pin events.
         rotary_dt_callback: Callback function to handle rotary encoder DT pin events.
-        press_callback: Callback function to handle button press events.
-        release_callback: Callback function to handle button release events.
+        button_callback: Callback function to handle rotary encoder button events.
     """
     GPIO.add_event_detect(ROTARY_CLK, GPIO.BOTH, callback=rotary_clk_callback, bouncetime=ROTARY_BOUNCETIME)
     GPIO.add_event_detect(ROTARY_DT, GPIO.BOTH, callback=rotary_dt_callback, bouncetime=ROTARY_BOUNCETIME)
-    GPIO.add_event_detect(ROTARY_SW, GPIO.FALLING, callback=press_callback, bouncetime=BUTTON_BOUNCETIME)
-    GPIO.add_event_detect(ROTARY_SW, GPIO.RISING, callback=release_callback, bouncetime=BUTTON_BOUNCETIME)
+    button_input = GPIO.input(ROTARY_SW)
+    GPIO.add_event_detect(ROTARY_SW, GPIO.BOTH, callback=lambda x: button_callback(button_input), bouncetime=BUTTON_BOUNCETIME)
 
 def toggle_button_led(on: bool = True) -> None:
     """Toggle the button LED on and off.
