@@ -3,9 +3,9 @@ from enum import Enum
 from threading import Lock
 
 
-DOUBLE_CLICK_MAX_INTERVAL = 0.5 # seconds
+DOUBLE_CLICK_MAX_INTERVAL = 0.3 # seconds
 LONG_PRESS_THRESHOLD = 3 # seconds
-ROTARY_THRESHOLD = 0.1 # seconds between rotary encoder events to consider them valid
+ROTARY_THRESHOLD = 0.01 # seconds between rotary encoder events to consider them valid
 
 
 class ButtonState(Enum):
@@ -28,15 +28,16 @@ class ButtonHandler:
         self.blocked = False
         self.lock = Lock()
     
-    def button_callback(self, _, pin_input) -> None:
+    def button_callback(self, _, input_function, pin_input) -> None:
         """Callback function to handle button events. Must be called with GPIO event detection 
         on both press and release. RPi.GPIO can only handle a single callback per pin and 
         therefore this function acts as a wrapper for the press and release callbacks.
         
         Args:
-            pin_input: 0 for press, 1 for release.
+            input_function: Function to get the state of the input pin, usually GPIO.input.
+            pin_input: State of the input pin; 0 for press, 1 for release.
         """
-        if pin_input == 0:
+        if input_function(pin_input) == 0: # should result in GPIO.input(pin_input) == 0
             self._press_callback(_)
         else:
             self._release_callback(_)
