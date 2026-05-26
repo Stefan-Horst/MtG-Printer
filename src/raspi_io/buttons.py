@@ -45,25 +45,27 @@ class ButtonHandler:
     def _press_callback(self, _) -> None:
         """Callback function to handle button press events. Must be called with 
         GPIO event detection on press and used together with release_callback."""
-        self.last_button_press = time.time()
+        with self.lock:
+            self.last_button_press = time.time()
     
     def _release_callback(self, _) -> None:
         """Callback function to handle button release events. Must be called with 
         GPIO event detection on release and used together with press_callback."""
-        self.last_button_release = time.time()
+        button_release = time.time()
         with self.lock:
             if self.blocked:
                 return
             if self.state == ButtonState.IDLE:
-                time_since_press = time.time() - self.last_button_press
-                if time_since_press > LONG_PRESS_THRESHOLD:
+                time_pressed = button_release - self.last_button_press
+                if time_pressed > LONG_PRESS_THRESHOLD and self.last_button_press != 0: # make sure double click 2nd click wasn't missed
                     self.state = ButtonState.LONG_PRESS
                     self.blocked = True
-                self.state = ButtonState.SINGLE_CLICK # can't block yet because could be double click
-            elif (self.state == ButtonState.SINGLE_CLICK 
-                  and self.last_button_press - self.last_button_release < DOUBLE_CLICK_MAX_INTERVAL):
+                else:
+                    self.state = ButtonState.SINGLE_CLICK # can't block yet because could be double click
+            elif self.state == ButtonState.SINGLE_CLICK:
                 self.state = ButtonState.DOUBLE_CLICK
-            self.blocked = True
+                self.blocked = True
+            self.last_button_release = button_release
 
     def reset(self) -> None:
         """Reset the button handler state. Must be called after handling 
@@ -87,8 +89,7 @@ class ButtonHandler:
             ):
                 self.blocked = True
             if not self.blocked and self.state == ButtonState.SINGLE_CLICK:
-                # if single click detected but not blocked yet, return idle until certain if it's double click or not;
-                # reset must not be called while waiting for potential double click
+                # if single click detected but not blocked yet, return idle until certain if it's double click or not
                 return ButtonState.IDLE
         return self.state
 
@@ -117,27 +118,27 @@ class RotaryEncoderHandler(ButtonHandler):
     def rotary_clk_callback(self, _) -> None:
         """Callback function to handle rotary encoder CLK pin events. 
         Must be called with GPIO event detection and used together with DT."""
-        self.last_clk_trigger = time.time()
         with self.lock_re:
+            self.last_clk_trigger = time.time()
             if self.rotary_blocked:
                 return
-            if time.time() - self.last_dt_trigger < ROTARY_THRESHOLD:
-                self.rotary_state = RotaryState.RIGHT
-            else:
+            if 0 < self.last_clk_trigger - self.last_dt_trigger < ROTARY_THRESHOLD:
                 self.rotary_state = RotaryState.LEFT
+            else:
+                self.rotary_state = RotaryState.RIGHT
             self.rotary_blocked = True
     
     def rotary_dt_callback(self, _) -> None:
         """Callback function to handle rotary encoder DT pin events. 
         Must be called with GPIO event detection and used together with CLK."""
-        self.last_dt_trigger = time.time()
         with self.lock_re:
+            self.last_dt_trigger = time.time()
             if self.rotary_blocked:
                 return
-            if time.time() - self.last_clk_trigger < ROTARY_THRESHOLD:
-                self.rotary_state = RotaryState.LEFT
-            else:
+            if 0 < self.last_dt_trigger - self.last_clk_trigger < ROTARY_THRESHOLD:
                 self.rotary_state = RotaryState.RIGHT
+            else:
+                self.rotary_state = RotaryState.LEFT
             self.rotary_blocked = True
     
     def reset_rotary(self) -> None:

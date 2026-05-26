@@ -13,8 +13,8 @@ BUTTON_LED = 11
 
 # LGPIO actually implements bouncetime differently: 
 # it is the time a signal must be stable before it is detected as a valid event.
-BUTTON_BOUNCETIME = 20 # ms, for all buttons
-ROTARY_BOUNCETIME = 10 # ms, for rotary encoder
+BUTTON_BOUNCETIME = 10 # ms, for all buttons
+ROTARY_BOUNCETIME = 5  # ms, for rotary encoder
 
 
 def setup_gpio() -> None:
