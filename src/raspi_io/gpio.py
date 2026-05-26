@@ -4,9 +4,9 @@ import RPi.GPIO as GPIO
 # GPIO Pin Configuration for BCM mode
 MODE = GPIO.BOARD
 # Rotary encoder
-ROTARY_DT = 15
 ROTARY_CLK = 16
-ROTARY_SW = 18 # Button
+ROTARY_DT = 18
+ROTARY_SW = 15 # Button
 # LED Button
 BUTTON_PIN = 13
 BUTTON_LED = 11
@@ -50,8 +50,8 @@ def add_rotary_callbacks(rotary_clk_callback: Callable[[int], None],
         rotary_dt_callback: Callback function to handle rotary encoder DT pin events.
         button_callback: Callback function to handle rotary encoder button events.
     """
-    GPIO.add_event_detect(ROTARY_CLK, GPIO.BOTH, callback=rotary_clk_callback, bouncetime=ROTARY_BOUNCETIME)
-    GPIO.add_event_detect(ROTARY_DT, GPIO.BOTH, callback=rotary_dt_callback, bouncetime=ROTARY_BOUNCETIME)
+    GPIO.add_event_detect(ROTARY_CLK, GPIO.RISING, callback=rotary_clk_callback, bouncetime=ROTARY_BOUNCETIME)
+    GPIO.add_event_detect(ROTARY_DT, GPIO.RISING, callback=rotary_dt_callback, bouncetime=ROTARY_BOUNCETIME)
     # add param to callback function to distinguish between press and release events in the same callback
     button_input = GPIO.input(ROTARY_SW)
     GPIO.add_event_detect(ROTARY_SW, GPIO.BOTH, callback=lambda _: button_callback(_, button_input), bouncetime=BUTTON_BOUNCETIME)
