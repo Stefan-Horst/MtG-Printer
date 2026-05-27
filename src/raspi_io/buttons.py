@@ -1,6 +1,7 @@
 import time
 from enum import Enum
 from threading import Lock
+from collections.abc import Callable
 
 
 DOUBLE_CLICK_MAX_INTERVAL = 0.3 # seconds
@@ -28,7 +29,7 @@ class ButtonHandler:
         self.blocked = False
         self.lock = Lock()
     
-    def button_callback(self, _, input_function, pin_input) -> None:
+    def button_callback(self, _: int, input_function: Callable[[int], bool], pin_input: int) -> None:
         """Callback function to handle button events. Must be called with GPIO event detection 
         on both press and release. RPi.GPIO can only handle a single callback per pin and 
         therefore this function acts as a wrapper for the press and release callbacks.
@@ -42,13 +43,13 @@ class ButtonHandler:
         else:
             self._release_callback(_)
     
-    def _press_callback(self, _) -> None:
+    def _press_callback(self, _: int) -> None:
         """Callback function to handle button press events. Must be called with 
         GPIO event detection on press and used together with release_callback."""
         with self.lock:
             self.last_button_press = time.time()
     
-    def _release_callback(self, _) -> None:
+    def _release_callback(self, _: int) -> None:
         """Callback function to handle button release events. Must be called with 
         GPIO event detection on release and used together with press_callback."""
         button_release = time.time()
@@ -117,7 +118,7 @@ class RotaryEncoderHandler(ButtonHandler):
         self.lock_re = Lock()
         super().__init__()
     
-    def rotary_callback(self, _, input_function, pin_clk, pin_dt) -> None:
+    def rotary_callback(self, _: int, input_function: Callable[[int], bool], pin_clk: int, pin_dt: int) -> None:
         """Callback function to handle rotary encoder pin events. 
         Must be called with GPIO event detection and used for both CLK and DT pins.
         

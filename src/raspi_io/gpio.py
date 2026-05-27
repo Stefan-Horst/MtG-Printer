@@ -28,7 +28,7 @@ def setup_gpio() -> None:
     GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
     GPIO.setup(BUTTON_LED, GPIO.OUT)
 
-def add_button_callback(button_callback: Callable[[int], None]) -> None:
+def add_button_callback(button_callback: Callable[[int, Callable[[int], bool], int], None]) -> None:
     """Add a callback function to handle button events. The callback 
     must be called with GPIO event detection on press and release.
     
@@ -39,8 +39,8 @@ def add_button_callback(button_callback: Callable[[int], None]) -> None:
     button_callback_wrapper = lambda _: button_callback(_, GPIO.input, BUTTON_PIN)
     GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=button_callback_wrapper, bouncetime=BUTTON_BOUNCETIME)
 
-def add_rotary_callbacks(rotary_callback: Callable[[int], None], 
-                         button_callback: Callable[[int], None]) -> None:
+def add_rotary_callbacks(rotary_callback: Callable[[int, Callable[[int], bool], int, int], None], 
+                         button_callback: Callable[[int, Callable[[int], bool], int], None]) -> None:
     """Add callback functions to handle rotary encoder events. The callbacks 
     must be called with GPIO event detection on both CLK and DT pins.
     
