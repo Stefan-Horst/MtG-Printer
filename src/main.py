@@ -105,54 +105,62 @@ except Exception:
 
 print("=> Entering main loop. Waiting for button events...")
 rotary_value = 0
-while True:
-    # handle main button events: single click to display context info, 
-    # double click to display/print general info, long press to exit program and trigger shutdown
-    button_state = button_handler.get_state()
-    if button_state == ButtonState.SINGLE_CLICK:
-        button_handler.reset()
-    elif button_state == ButtonState.DOUBLE_CLICK:
-        button_handler.reset()
-    elif button_state == ButtonState.LONG_PRESS:
-        break # exit program and trigger shutdown
-    
-    # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
-    # the value wraps around if it would exceed the specified min and max values and specified values are skipped
-    rotary_state = rotary_encoder_handler.get_rotary_state()
-    if rotary_state == RotaryState.RIGHT:
-        rotary_value += 1
-        if rotary_value in SKIP_VALUES:
+shutdown_requested = False
+try:
+    while True:
+        # handle main button events: single click to display context info, 
+        # double click to display/print general info, long press to exit program and trigger shutdown
+        button_state = button_handler.get_state()
+        if button_state == ButtonState.SINGLE_CLICK:
+            button_handler.reset()
+        elif button_state == ButtonState.DOUBLE_CLICK:
+            button_handler.reset()
+        elif button_state == ButtonState.LONG_PRESS:
+            shutdown_requested = True
+            break # exit program and trigger shutdown
+        
+        # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
+        # the value wraps around if it would exceed the specified min and max values and specified values are skipped
+        rotary_state = rotary_encoder_handler.get_rotary_state()
+        if rotary_state == RotaryState.RIGHT:
             rotary_value += 1
-        if rotary_value > ROTARY_MAX_VALUE:
-            rotary_value = ROTARY_MIN_VALUE
-        rotary_encoder_handler.reset_rotary()
-    elif rotary_state == RotaryState.LEFT:
-        rotary_value -= 1
-        if rotary_value in SKIP_VALUES:
+            if rotary_value in SKIP_VALUES:
+                rotary_value += 1
+            if rotary_value > ROTARY_MAX_VALUE:
+                rotary_value = ROTARY_MIN_VALUE
+            rotary_encoder_handler.reset_rotary()
+        elif rotary_state == RotaryState.LEFT:
             rotary_value -= 1
-        if rotary_value < ROTARY_MIN_VALUE:
-            rotary_value = ROTARY_MAX_VALUE
-        rotary_encoder_handler.reset_rotary()
-    
-    # handle rotary encoder push button: single click to confirm selected value, 
-    # double click currently not used, long press to reset program
-    rotary_button_state = rotary_encoder_handler.get_state()
-    if rotary_button_state == ButtonState.SINGLE_CLICK:
-        rotary_encoder_handler.reset()
-    elif rotary_button_state == ButtonState.DOUBLE_CLICK:
-        # do nothing for now
-        rotary_encoder_handler.reset()
-    elif rotary_button_state == ButtonState.LONG_PRESS:
-        rotary_encoder_handler.reset()
+            if rotary_value in SKIP_VALUES:
+                rotary_value -= 1
+            if rotary_value < ROTARY_MIN_VALUE:
+                rotary_value = ROTARY_MAX_VALUE
+            rotary_encoder_handler.reset_rotary()
+        
+        # handle rotary encoder push button: single click to confirm selected value, 
+        # double click currently not used, long press to reset program
+        rotary_button_state = rotary_encoder_handler.get_state()
+        if rotary_button_state == ButtonState.SINGLE_CLICK:
+            rotary_encoder_handler.reset()
+        elif rotary_button_state == ButtonState.DOUBLE_CLICK:
+            # do nothing for now
+            rotary_encoder_handler.reset()
+        elif rotary_button_state == ButtonState.LONG_PRESS:
+            rotary_encoder_handler.reset()
+except KeyboardInterrupt:
+    print("\n=> Keyboard interrupt received. Exiting...")
 
 ### CLEANUP
 
-print("=> Shutdown requested. Exiting...")
+if shutdown_requested:
+    print("=> Shutdown requested. Exiting...")
 # Close hardware components and database connection before exiting
 db.close()
 display.close()
 printer.close()
 gpio.close()
 
-# Trigger system shutdown
-subprocess.run(["shutdown"])
+if shutdown_requested:
+    subprocess.run(["shutdown"]) # Trigger system shutdown
+else:
+    sys.exit(0)
