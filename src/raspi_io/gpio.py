@@ -36,23 +36,26 @@ def add_button_callback(button_callback: Callable[[int], None]) -> None:
         button_callback: Callback function to handle button events.
     """
     # add param to callback function to distinguish between press and release events in the same callback
-    GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=lambda _: button_callback(_, GPIO.input, BUTTON_PIN), bouncetime=BUTTON_BOUNCETIME)
+    button_callback_wrapper = lambda _: button_callback(_, GPIO.input, BUTTON_PIN)
+    GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=button_callback_wrapper, bouncetime=BUTTON_BOUNCETIME)
 
-def add_rotary_callbacks(rotary_clk_callback: Callable[[int], None], 
-                         rotary_dt_callback: Callable[[int], None], 
+def add_rotary_callbacks(rotary_callback: Callable[[int], None], 
                          button_callback: Callable[[int], None]) -> None:
     """Add callback functions to handle rotary encoder events. The callbacks 
-    must be called with GPIO event detection and used together.
+    must be called with GPIO event detection on both CLK and DT pins.
     
     Args:
-        rotary_clk_callback: Callback function to handle rotary encoder CLK pin events.
-        rotary_dt_callback: Callback function to handle rotary encoder DT pin events.
+        rotary_callback: Callback function to handle rotary encoder CLK and DT pin events.
         button_callback: Callback function to handle rotary encoder button events.
     """
-    GPIO.add_event_detect(ROTARY_CLK, GPIO.RISING, callback=rotary_clk_callback, bouncetime=ROTARY_BOUNCETIME)
-    GPIO.add_event_detect(ROTARY_DT, GPIO.RISING, callback=rotary_dt_callback, bouncetime=ROTARY_BOUNCETIME)
+    # add params to callback function to enable accessing both pin inputs for rotation direction detection
+    rotary_callback_wrapper = lambda _: rotary_callback(_, GPIO.input, ROTARY_CLK, ROTARY_DT)
+    # need to use GPIO.BOTH as the rotary encoder cycles between HIGH and LOW resting positions during rotation
+    GPIO.add_event_detect(ROTARY_CLK, GPIO.BOTH, callback=rotary_callback_wrapper, bouncetime=ROTARY_BOUNCETIME)
+    GPIO.add_event_detect(ROTARY_DT, GPIO.BOTH, callback=rotary_callback_wrapper, bouncetime=ROTARY_BOUNCETIME)
     # add param to callback function to distinguish between press and release events in the same callback
-    GPIO.add_event_detect(ROTARY_SW, GPIO.BOTH, callback=lambda _: button_callback(_, GPIO.input, ROTARY_SW), bouncetime=BUTTON_BOUNCETIME)
+    button_callback_wrapper = lambda _: button_callback(_, GPIO.input, ROTARY_SW)
+    GPIO.add_event_detect(ROTARY_SW, GPIO.BOTH, callback=button_callback_wrapper, bouncetime=BUTTON_BOUNCETIME)
 
 def toggle_button_led(on: bool = True) -> None:
     """Toggle the button LED on and off.
