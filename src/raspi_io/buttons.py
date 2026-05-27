@@ -5,10 +5,10 @@ from threading import Lock
 
 DOUBLE_CLICK_MAX_INTERVAL = 0.3 # seconds
 LONG_PRESS_THRESHOLD = 3 # seconds
-ROTARY_THRESHOLD = 0.01 # seconds between rotary encoder events to consider them valid
 
 
 class ButtonState(Enum):
+    """Enum to represent the current button state."""
     IDLE = 0
     SINGLE_CLICK = 1
     DOUBLE_CLICK = 2
@@ -95,9 +95,13 @@ class ButtonHandler:
 
 
 class RotaryState(Enum):
-    IDLE = 0
+    """Enum to represent the current rotary encoder state."""
+    IDLE = 0 # represents unknown or initial state
     RIGHT = 1
     LEFT = 2
+    # intermediate states only used internally for rotation direction detection
+    HIGH = 3 # represents resting position with both pins HIGH
+    LOW = 4  # represents resting position with both pins LOW
 
 class RotaryEncoderHandler(ButtonHandler):
     """Class to handle rotary encoder events with support for clockwise and 
@@ -108,52 +112,57 @@ class RotaryEncoderHandler(ButtonHandler):
     button. Both states are handled independently and must be reset separately."""
     
     def __init__(self):
-        self.last_clk_trigger = 0
-        self.last_dt_trigger = 0
         self.rotary_state = RotaryState.IDLE
         self.rotary_blocked = False
         self.lock_re = Lock()
         super().__init__()
     
-    def rotary_clk_callback(self, _) -> None:
-        """Callback function to handle rotary encoder CLK pin events. 
-        Must be called with GPIO event detection and used together with DT."""
+    def rotary_callback(self, _, input_function, pin_clk, pin_dt) -> None:
+        """Callback function to handle rotary encoder pin events. 
+        Must be called with GPIO event detection and used for both CLK and DT pins.
+        
+        Args:
+            input_function: Function to get the state of the input pin, usually GPIO.input.
+            pin_clk: GPIO pin number for the rotary encoder CLK pin.
+            pin_dt: GPIO pin number for the rotary encoder DT pin.
+        """
+        dt = input_function(pin_dt)   # should result in GPIO.input(pin_dt)
+        clk = input_function(pin_clk) # should result in GPIO.input(pin_clk)
         with self.lock_re:
-            self.last_clk_trigger = time.time()
             if self.rotary_blocked:
                 return
-            if 0 < self.last_clk_trigger - self.last_dt_trigger < ROTARY_THRESHOLD:
-                self.rotary_state = RotaryState.LEFT
-            else:
+            # the rotary encoder cycles between the following states for each direction: 
+            # clockwise:         HIGH -> RIGHT -> LOW -> RIGHT -> HIGH 
+            # counter-clockwise: HIGH -> LEFT  -> LOW -> LEFT  -> HIGH 
+            # this means the relevant directional state exists twice in the cycle; 
+            # both occurences have opposite pin states for dt and clk and must be differentiated based on the last resting state 
+            elif (clk == 1 and dt == 0 and self.rotary_state == RotaryState.LOW
+                  or clk == 0 and dt == 1 and self.rotary_state == RotaryState.HIGH):
                 self.rotary_state = RotaryState.RIGHT
-            self.rotary_blocked = True
-    
-    def rotary_dt_callback(self, _) -> None:
-        """Callback function to handle rotary encoder DT pin events. 
-        Must be called with GPIO event detection and used together with CLK."""
-        with self.lock_re:
-            self.last_dt_trigger = time.time()
-            if self.rotary_blocked:
-                return
-            if 0 < self.last_dt_trigger - self.last_clk_trigger < ROTARY_THRESHOLD:
-                self.rotary_state = RotaryState.RIGHT
-            else:
+                self.rotary_blocked = True
+            elif (clk == 0 and dt == 1 and self.rotary_state == RotaryState.LOW
+                  or clk == 1 and dt == 0 and self.rotary_state == RotaryState.HIGH):
                 self.rotary_state = RotaryState.LEFT
-            self.rotary_blocked = True
+                self.rotary_blocked = True
+            elif clk == 1 and dt == 1:
+                self.rotary_state = RotaryState.HIGH
+            elif clk == 0 and dt == 0:
+                self.rotary_state = RotaryState.LOW
     
     def reset_rotary(self) -> None:
         """Reset the rotary encoder handler state. Must be called after 
         handling a detected event to be able to detect the next one."""
         with self.lock_re:
-            self.last_clk_trigger = 0
-            self.last_dt_trigger = 0
             self.rotary_state = RotaryState.IDLE
             self.rotary_blocked = False
     
     def get_rotary_state(self) -> RotaryState:
-        """Get the current rotary encoder state.
+        """Get the current rotary encoder state. 
+        Does not return intermediate states as these are not useful.
         
         Returns:
             RotaryState: IDLE, RIGHT, LEFT.
         """
+        if not self.rotary_blocked:
+            return RotaryState.IDLE
         return self.rotary_state
