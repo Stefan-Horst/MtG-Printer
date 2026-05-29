@@ -23,7 +23,11 @@ class DisplayManager:
             # adjust positioning as needed
             draw.text((10, 25), text, fill="white")
     
-    def display_scrolling_text(self, text: str, cycles: int = 1, start_pause: float = 3.0, scroll_delay: float = 0.1, end_pause: float = 3.0) -> None:
+    def display_scrolling_text(self, text: str, 
+                               cycles: int = 1, 
+                               start_pause: float = 4.0, 
+                               scroll_delay: float = 1.5, 
+                               end_pause: float = 2.0) -> None:
         """Display text with automatic line breaks and vertical scrolling if the text 
         has more lines than the display can show at once based on its width and height.
 
@@ -34,34 +38,12 @@ class DisplayManager:
             scroll_delay: Delay between each scroll step
             end_pause: Time to pause at the end of scrolling
         """
-        width = self.display.width
-        height = self.display.height
         font = ImageFont.load_default()
-
-        def wrap_text(raw_text: str) -> list[str]:
-            lines: list[str] = []
-            for paragraph in raw_text.replace("\r", "").split("\n"):
-                if not paragraph:
-                    lines.append("")
-                    continue
-                words = paragraph.split()
-                current_line = words[0]
-                for word in words[1:]:
-                    candidate = f"{current_line} {word}"
-                    if font.getsize(candidate)[0] <= width:
-                        current_line = candidate
-                    else:
-                        lines.append(current_line)
-                        current_line = word
-                lines.append(current_line)
-            return lines
-
-        lines = wrap_text(text)
+        lines = self._wrap_text(text, font, self.display.width)
         if not lines:
             lines = [""]
-
-        line_height = font.getsize("A")[1]
-        max_lines = max(1, height // line_height)
+        line_height = font.getbbox("A")[3] - font.getbbox("A")[1]
+        max_lines = max(1, self.display.height // line_height)
         total_lines = len(lines)
 
         def draw_page(start_line: int) -> None:
@@ -84,6 +66,34 @@ class DisplayManager:
                 time.sleep(scroll_delay)
             time.sleep(end_pause)
 
+    def _wrap_text(self, raw_text: str, font: ImageFont, width: int) -> list[str]:
+        """Wrap text into lines that fit the display width based on the provided font.
+        
+        Args:
+            raw_text: Text to wrap
+            font: Font to use for wrapping
+            width: Width of the display in pixels
+        Returns:
+            List of wrapped lines
+        """
+        lines = []
+        for paragraph in raw_text.replace("\r", "").split("\n"):
+            if not paragraph:
+                lines.append("")
+                continue
+            words = paragraph.split()
+            current_line = words[0]
+            for word in words[1:]:
+                candidate = f"{current_line} {word}"
+                if font.getlength(candidate) <= width:
+                    current_line = candidate
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            lines.append(current_line)
+            lines.append("") # empty line after each paragraph
+        return lines[:-1]
+    
     def clear_display(self) -> None:
         """Clear the OLED display"""
         with canvas(self.display) as draw:
