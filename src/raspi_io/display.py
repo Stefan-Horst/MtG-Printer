@@ -1,7 +1,8 @@
 from luma.core.interface.serial import i2c as luma_i2c
 from luma.oled.device import sh1106
 from luma.core.render import canvas
-from PIL import ImageFont
+from luma.core.sprite_system import framerate_regulator
+from PIL import Image, ImageDraw, ImageFont
 import time
 
 
@@ -17,12 +18,12 @@ class DisplayManager:
         """Display text on the OLED display.
         
         Args:
-            text: string to display on the OLED screen
+            text: String to display on the OLED screen
         """
         with canvas(self.display) as draw:
             # adjust positioning as needed
             draw.text((10, 25), text, fill="white")
-    
+
     def display_scrolling_text(self, text: str, 
                                cycles: int = 1, 
                                start_pause: float = 4.0, 
@@ -93,6 +94,66 @@ class DisplayManager:
             lines.append(current_line)
             lines.append("") # empty line after each paragraph
         return lines[:-1]
+    
+    def display_loading_screen(self, text: str, cycles: int = 2, size: int = 3, bar_length: int = 120, fps: int = 30) -> None:
+        """Show an animated loading screen with a rotating bar effect around the text.
+        
+        Args:
+            text: String to display in the center of the loading screen
+            cycles: Number of times to cycle the bar effect around the display before returning
+            size: Thickness of the bars in the loading animation in pixels
+            bar_length: Length of the rotating bar in pixels
+            fps: Frames per second for the animation
+        """
+        width = self.display.width
+        height = self.display.height
+
+        # Build the path along the outer margin of the display for the rotating bars
+        path = []
+        for x in range(size, width):
+            for i in range(size):
+                path.append((x, i))
+        for y in range(size, height):
+            for i in range(size):
+                path.append((width - 1 - i, y))
+        for x in range(width - size - 1, -1, -1):
+            for i in range(size):
+                path.append((x, height - 1 - i))
+        for y in range(height - size - 1, -1, -1):
+            for i in range(size):
+                path.append((i, y))
+        path_length = len(path)
+        if path_length == 0:
+            return
+
+        # Wrap the text to fit inside the bars and calculate positions for centered display
+        text_lines = self._wrap_text(text, ImageFont.load_default(), width - 2 * size)
+        pos_line_tuples = []
+        draw = ImageDraw.Draw(Image.new(self.display.mode, self.display.size)) # simulate canvas
+        for num, line in enumerate(text_lines):
+            text_width = draw.textbbox((0, 0), line)[2] - draw.textbbox((0, 0), line)[0]
+            text_height = draw.textbbox((0, 0), line)[3] - draw.textbbox((0, 0), line)[1]
+            text_x = (width - text_width) // 2
+            text_y = (height - text_height * len(text_lines)) // 2 + num * text_height
+            pos_line_tuples.append(((text_x, text_y), line))
+        
+        # Display the loading animation
+        regulator = framerate_regulator(fps=fps)
+        for frame in range(cycles * path_length // size):
+            with regulator:
+                start_positions = [(frame * size) % path_length, (frame * size + path_length // 2) % path_length]
+                # Generate points for the rotating bars based on the current frame and bar length
+                points = []
+                for start in start_positions:
+                    for step in range(bar_length * size):
+                        x, y = path[(start + step) % path_length]
+                        points.append((x, y))
+                with canvas(self.display) as draw:
+                    # Draw two opposite white bars moving along the outer margin.
+                    draw.point(points, fill="white")
+                    # Static text in the middle.
+                    for pos, line in pos_line_tuples:
+                        draw.text(pos, line, fill="white")
     
     def clear_display(self) -> None:
         """Clear the OLED display"""
