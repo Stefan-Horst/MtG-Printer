@@ -95,7 +95,12 @@ class DisplayManager:
             lines.append("") # empty line after each paragraph
         return lines[:-1]
     
-    def display_loading_screen(self, text: str, cycles: int = 2, size: int = 3, bar_length: int = 120, fps: int = 30) -> None:
+    def display_loading_screen(self, text: str, 
+                               cycles: int = 2, 
+                               size: int = 3, 
+                               bar_length: int = 120, 
+                               speed: int = 4, 
+                               fps: int = 30) -> None:
         """Show an animated loading screen with a rotating bar effect around the text.
         
         Args:
@@ -103,6 +108,7 @@ class DisplayManager:
             cycles: Number of times to cycle the bar effect around the display before returning
             size: Thickness of the bars in the loading animation in pixels
             bar_length: Length of the rotating bar in pixels
+            speed: Speed of the rotating bar animation
             fps: Frames per second for the animation
         """
         width = self.display.width
@@ -139,9 +145,9 @@ class DisplayManager:
         
         # Display the loading animation
         regulator = framerate_regulator(fps=fps)
-        for frame in range(cycles * path_length // size):
+        for frame in range(cycles * path_length / size // speed):
             with regulator:
-                start_positions = [(frame * size) % path_length, (frame * size + path_length // 2) % path_length]
+                start_positions = [(frame * size * speed) % path_length, (frame * size * speed + path_length // 2) % path_length]
                 # Generate points for the rotating bars based on the current frame and bar length
                 points = []
                 for start in start_positions:
