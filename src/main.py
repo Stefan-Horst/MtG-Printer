@@ -5,6 +5,7 @@ import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
+from raspi_io.background_tasks import toggle_led_blink
 from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
@@ -139,7 +140,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # parse command line arguments
+    # Parse command line arguments
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--skipinit", default=False, action="store_true", help="Skip initialization steps")
@@ -150,7 +151,7 @@ if __name__ == "__main__":
     print("=> Initializing hardware components...")
     try:
         gpio.setup_gpio()
-        gpio.toggle_button_led(True) # turn on LED to indicate that the program is running
+        toggle_led_blink(True) # blink LED to indicate that the program is running
         display = DisplayManager()
         printer = PrinterManager()
         button_handler = ButtonHandler()
@@ -171,6 +172,8 @@ if __name__ == "__main__":
     
     ### MAIN LOOP
     
+    toggle_led_blink(False) # stop LED blinking after initialization is done
+    gpio.toggle_button_led(True) # turn on LED to indicate that the program is ready for input
     db = DatabaseManager()
     shutdown_requested = False
     main()
@@ -186,6 +189,6 @@ if __name__ == "__main__":
     gpio.close()
 
     if shutdown_requested:
-        subprocess.run(["shutdown"]) # Trigger system shutdown
+        subprocess.run(["shutdown"]) # trigger system shutdown
     else:
         sys.exit(0)
