@@ -7,7 +7,7 @@ from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
 from raspi_io.background_tasks import toggle_led_blink
-from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images
+from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
 
@@ -34,8 +34,13 @@ def init():
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
     print("=> Loading card data into database...")
-    create_database(ignore_if_exists=True)
-    db = DatabaseManager()
+    try:
+        create_database(ignore_if_exists=True)
+        db = DatabaseManager()
+    except Exception as e:
+        print(f"Failed to create or open database: {e}.\nExiting.")
+        sys.exit(1)
+    
     file_image_data = []
     for card_data in load_scryfall_card_data_chunks():
         try:
@@ -45,7 +50,10 @@ def init():
             try:
                 db.save_card_data(card_data, commit=False, handle_exist="ignore")
             except Exception as e:
-                print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}")
+                print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}.\nExiting.")
+                clear_local_data() # remove card data to avoid inconsistent state on next run
+                db.close()
+                sys.exit(1)
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
     try:
@@ -56,6 +64,7 @@ def init():
             db.commit()
         except Exception as e:
             print(f"Failed to commit changes to database: {e}\nExiting.")
+            clear_local_data() # remove card data to avoid inconsistent state on next run
             db.close()
             sys.exit(1)
     db.close()
@@ -73,19 +82,18 @@ def init():
             print("All images downloaded successfully.")
             break
     if failed_downloads:
-        print(f"Failed to download images for {len(failed_downloads)} cards. Moving on...")
+        print(f"Failed to download images for {len(failed_downloads)} cards. Exiting.")
+        clear_local_data() # remove card data to avoid inconsistent state on next run
+        sys.exit(1)
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     print("=> Processing card images...")
     try:
         process_all_images(skip_existing=True)
-    except Exception:
-        print("Failed to process images. Trying again...")
-        try:
-            process_all_images(skip_existing=True)
-        except Exception as e:
-            print(f"Failed to process images: {e}\nExiting.")
-            sys.exit(1)
+    except Exception as e:
+        print(f"Failed to process images: {e}\nExiting.")
+        clear_local_data() # remove card data to avoid inconsistent state on next run
+        sys.exit(1)
 
 
 def main():
