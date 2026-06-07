@@ -1,3 +1,4 @@
+import os
 import sys
 import subprocess
 
@@ -20,7 +21,6 @@ SKIP_VALUES = [14]    # mana values with no creature cards
 def init():
     """Initialize the program by downloading and processing card data and images. 
     This function should be called once at the start of the program."""
-    ### INIT DATA AND IMAGES
 
     # Step 1: Download card data from Scryfall API and save to JSON file
     print("=> Downloading card data from Scryfall...")
@@ -92,7 +92,7 @@ def main():
     """Main loop of the program, handling button events and updating the display and printer accordingly."""
     
     print("=> Entering main loop. Waiting for button events...")
-    global shutdown_requested
+    global exit_mode
     rotary_value = 0
     try:
         while True:
@@ -104,7 +104,8 @@ def main():
             elif button_state == ButtonState.DOUBLE_CLICK:
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
-                shutdown_requested = True
+                print("=> Shutdown requested. Exiting...")
+                exit_mode = "shutdown"
                 break # exit program and trigger shutdown
             
             # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
@@ -137,6 +138,9 @@ def main():
                 rotary_encoder_handler.reset()
     except KeyboardInterrupt:
         print("\n=> Keyboard interrupt received. Exiting...")
+    except Exception as e:
+        print(f"\n=> An error occurred: {e}\nRestarting...")
+        exit_mode = "restart"
 
 
 if __name__ == "__main__":
@@ -175,20 +179,19 @@ if __name__ == "__main__":
     toggle_led_blink(False) # stop LED blinking after initialization is done
     gpio.toggle_button_led(True) # turn on LED to indicate that the program is ready for input
     db = DatabaseManager()
-    shutdown_requested = False
+    exit_mode = ""
     main()
     
     ### CLEANUP
 
-    if shutdown_requested:
-        print("=> Shutdown requested. Exiting...")
-    # Close hardware components and database connection before exiting
     db.close()
     display.close()
     printer.close()
     gpio.close()
 
-    if shutdown_requested:
-        subprocess.run(["shutdown"]) # trigger system shutdown
-    else:
+    if exit_mode == "shutdown": # trigger system shutdown
+        subprocess.run(["shutdown"])
+    elif exit_mode == "restart": # restart the program
+        os.execv(sys.executable, ["python3"] + sys.argv + ["-s"])
+    else: # key interrupt etc
         sys.exit(0)
