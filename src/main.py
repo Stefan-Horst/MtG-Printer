@@ -1,6 +1,7 @@
 import os
 import sys
 import subprocess
+import socket
 
 import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
@@ -16,6 +17,7 @@ IMAGE_DOWNLOAD_RETRIES = 3
 ROTARY_MAX_VALUE = 16 # maximum possible mana cost
 ROTARY_MIN_VALUE = 0  # minimum possible mana cost
 SKIP_VALUES = [14]    # mana values with no creature cards
+CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
 
 
 def init():
@@ -95,7 +97,6 @@ def init():
         clear_local_data() # remove card data to avoid inconsistent state on next run
         sys.exit(1)
 
-
 def main():
     """Main loop of the program, handling button events and updating the display and printer accordingly."""
     
@@ -150,6 +151,21 @@ def main():
         print(f"\n=> An error occurred: {e}\nRestarting...")
         exit_mode = "restart"
 
+def has_internet_connection():
+    """Check if there is an active internet connection by trying to connect to a known host. 
+    Not fail-safe, only checks a specific host and port, but is a good indicator.
+    
+    Returns:
+        bool: True if there is an internet connection, False otherwise.
+    """
+    try:
+        s = socket.create_connection((CONNECTION_TEST_HOST, 80), timeout=1)
+        s.close()
+        return True
+    except Exception:
+        pass
+    return False
+
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -177,10 +193,12 @@ if __name__ == "__main__":
     
     ### INIT DATA
     
-    if not args.skipinit:
+    if args.skipinit:
+        print("=> Skipping initialization steps...")
+    elif has_internet_connection():
         init()
     else:
-        print("=> Skipping initialization steps...")
+        print("=> No internet connection detected. Skipping initialization steps...")
     
     ### MAIN LOOP
     
