@@ -1,9 +1,10 @@
+import time
+from threading import Event, Thread
 from luma.core.interface.serial import i2c as luma_i2c
 from luma.oled.device import sh1106
 from luma.core.render import canvas
 from luma.core.sprite_system import framerate_regulator
 from PIL import Image, ImageDraw, ImageFont
-import time
 
 
 class DisplayManager:
@@ -13,6 +14,7 @@ class DisplayManager:
     def __init__(self):
         serial = luma_i2c(port=1, address=0x3C)
         self.display = sh1106(serial, width=128, height=64)
+        self.toggle_loading_animation_event = Event() # event to control loading animation thread
 
     def display_text(self, text: str) -> None:
         """Display text on the OLED display.
@@ -95,17 +97,17 @@ class DisplayManager:
             lines.append("") # empty line after each paragraph
         return lines[:-1]
     
+    
     def display_loading_screen(self, text: str, 
-                               cycles: int = 2, 
                                size: int = 3, 
                                bar_length: int = 120, 
                                speed: int = 4, 
                                fps: int = 30) -> None:
-        """Show an animated loading screen with a rotating bar effect around the text.
+        """Show an animated loading screen with a rotating bar effect around the text. 
+        The animation loop runs in a separate thread until stop_loading_screen() is called.
         
         Args:
             text: String to display in the center of the loading screen
-            cycles: Number of times to cycle the bar effect around the display before returning
             size: Thickness of the bars in the loading animation in pixels
             bar_length: Length of the rotating bar in pixels
             speed: Speed of the rotating bar animation
@@ -113,6 +115,7 @@ class DisplayManager:
         """
         width = self.display.width
         height = self.display.height
+        regulator = framerate_regulator(fps=fps)
 
         # Build the path along the outer margin of the display for the rotating bars
         path = []
@@ -143,23 +146,33 @@ class DisplayManager:
             text_y = (height - text_height * len(text_lines)) // 2 + num * text_height
             pos_line_tuples.append(((text_x, text_y), line))
         
-        # Display the loading animation
-        regulator = framerate_regulator(fps=fps)
-        for frame in range(cycles * path_length / size // speed):
-            with regulator:
-                start_positions = [(frame * size * speed) % path_length, (frame * size * speed + path_length // 2) % path_length]
-                # Generate points for the rotating bars based on the current frame and bar length
-                points = []
-                for start in start_positions:
-                    for step in range(bar_length * size):
-                        x, y = path[(start + step) % path_length]
-                        points.append((x, y))
-                with canvas(self.display) as draw:
-                    # Draw two opposite white bars moving along the outer margin.
-                    draw.point(points, fill="white")
-                    # Static text in the middle.
-                    for pos, line in pos_line_tuples:
-                        draw.text(pos, line, fill="white")
+        # Animation loop showing rotating bars around text until the event is set
+        def _show_animation(event: Event):
+            while not event.is_set():
+                for frame in range(path_length / size // speed):
+                    with regulator:
+                        start_positions = [(frame * size * speed) % path_length, (frame * size * speed + path_length // 2) % path_length]
+                        # Generate points for the rotating bars based on the current frame and bar length
+                        points = []
+                        for start in start_positions:
+                            for step in range(bar_length * size):
+                                x, y = path[(start + step) % path_length]
+                                points.append((x, y))
+                        with canvas(self.display) as draw:
+                            # Draw two opposite white bars moving along the outer margin.
+                            draw.point(points, fill="white")
+                            # Static text in the middle.
+                            for pos, line in pos_line_tuples:
+                                draw.text(pos, line, fill="white")
+        
+        # Display the loading animation in a separate thread
+        self.toggle_loading_animation_event.clear()
+        Thread(target=_show_animation, args=(self.toggle_loading_animation_event,)).start()
+        
+    def stop_loading_screen(self):
+        """Stop the loading screen animation and clear the display."""
+        self.toggle_loading_animation_event.set()
+        self.clear_display()
     
     def clear_display(self) -> None:
         """Clear the OLED display"""
