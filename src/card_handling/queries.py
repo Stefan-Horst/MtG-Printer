@@ -6,14 +6,14 @@ from card_handling.process_image import PRINTER_IMAGE_DIR
 from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME
 
 
-def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image.Image:
+def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, Image.Image]:
     """Get a random creature card printer image with the specified mana cost from the database.
     
     Args:
         mana_cost: The desired mana cost of the creature card.
         db: An instance of the DatabaseManager to query the database.
     Returns:
-        Image: A PIL Image object representing the card printer image.
+        tuple: A tuple containing the card name and a PIL Image object representing the card printer image.
     """
     result = db.execute_query(
         "SELECT name FROM cards WHERE type_line LIKE ? AND cmc = ?", 
@@ -21,17 +21,17 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image.Image
     )
     if not result:
         raise ValueError("No matching creature card found")
-    image_name = random.choice(result)[0]
-    return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
+    card_name = random.choice(result)[0]
+    return (card_name, Image.open(f"{PRINTER_IMAGE_DIR}/{card_name}"))
 
-def get_momir_avatar_card() -> Image.Image:
+def get_momir_avatar_card() -> tuple[str, Image.Image]:
     """Get the Momir avatar card printer image from the database.
     
     Returns:
-        Image: A PIL Image object representing the card printer image.
+        tuple: A tuple containing the card name and a PIL Image object representing the card printer image.
     """
     image_name = MOMIR_AVATAR_NAME
-    return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
+    return (image_name, Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}"))
 
 def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
     """Get the oracle text of a card from the database.
