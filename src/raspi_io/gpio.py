@@ -1,3 +1,5 @@
+import time
+from threading import Event, Thread
 from collections.abc import Callable
 import RPi.GPIO as GPIO
 
@@ -64,6 +66,28 @@ def toggle_button_led(on: bool = True) -> None:
         on: If True, turn on the LED. If False, turn off the LED.
     """
     GPIO.output(BUTTON_LED, GPIO.HIGH if on else GPIO.LOW)
+
+toggle_led_event = Event()
+
+def toggle_led_blink(on: bool = True, interval: float = 0.5) -> None:
+    """Toggle the button LED on and off in a blinking pattern in the background 
+    using a separate thread. Must be called to start or stop the blinking pattern.
+    
+    Args:
+        on: If True, start the blinking pattern. If False, stop the blinking pattern.
+        interval: The time interval between on and off in seconds during blinking.
+    """
+    def _blink(event: Event):
+        while not event.is_set():
+            toggle_button_led(True)
+            time.sleep(interval)
+            toggle_button_led(False)
+            time.sleep(interval)
+    if on:
+        toggle_led_event.clear()
+        Thread(target=_blink, args=(toggle_led_event,)).start()
+    else:
+        toggle_led_event.set()
 
 def close() -> None:
     """Clean up GPIO settings. Must be called on program exit."""

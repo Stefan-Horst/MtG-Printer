@@ -1,7 +1,6 @@
 import time
 
 import raspi_io.gpio as gpio
-from raspi_io.background_tasks import toggle_led_blink
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
@@ -15,7 +14,7 @@ SKIP_VALUES = [14]
 
 print("Starting test...")
 gpio.setup_gpio()
-toggle_led_blink(True)
+gpio.toggle_led_blink(True)
 display = DisplayManager()
 printer = PrinterManager()
 button_handler = ButtonHandler()
@@ -26,7 +25,7 @@ gpio.add_rotary_callbacks(rotary_encoder_handler.rotary_callback,
 
 display.display_text("Starting test...")
 time.sleep(2)
-toggle_led_blink(False)
+gpio.toggle_led_blink(False)
 gpio.toggle_button_led(True)
 rotary_value = 0
 try:
