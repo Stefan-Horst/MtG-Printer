@@ -6,7 +6,7 @@ from card_handling.process_image import PRINTER_IMAGE_DIR
 from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME
 
 
-def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
+def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image.Image:
     """Get a random creature card printer image with the specified mana cost from the database.
     
     Args:
@@ -24,7 +24,7 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> Image:
     image_name = random.choice(result)[0]
     return Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}")
 
-def get_momir_avatar_card() -> Image:
+def get_momir_avatar_card() -> Image.Image:
     """Get the Momir avatar card printer image from the database.
     
     Returns:

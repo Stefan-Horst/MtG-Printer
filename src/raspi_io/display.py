@@ -97,7 +97,6 @@ class DisplayManager:
             lines.append("") # empty line after each paragraph
         return lines[:-1]
     
-    
     def display_loading_screen(self, text: str, 
                                size: int = 3, 
                                bar_length: int = 120, 
