@@ -49,13 +49,3 @@ def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
     if not result:
         raise ValueError("Card not found in database")
     return result[0][0]
-
-def get_momir_avatar_oracle_text(db: DatabaseManager) -> str:
-    """Get the oracle text of the Momir avatar card from the database.
-    
-    Args:
-        db: An instance of the DatabaseManager to query the database.
-    Returns:
-        str: The oracle text of the Momir avatar card.
-    """
-    return get_card_oracle_text(MOMIR_AVATAR_NAME, db)
