@@ -10,6 +10,7 @@ from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, R
 from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
+from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text
 
 
 IMAGE_DOWNLOAD_RETRIES = 3
@@ -102,14 +103,21 @@ def main():
     print("=> Entering main loop. Waiting for button events...")
     global exit_mode
     rotary_value = 0
+    current_card = None
     try:
         while True:
             # handle main button events: single click to display context info, 
             # double click to display/print general info, long press to exit program and trigger shutdown
             button_state = button_handler.get_state()
             if button_state == ButtonState.SINGLE_CLICK:
+                if current_card:
+                    oracle_text = get_card_oracle_text(current_card, db)
+                    display.display_scrolling_text(oracle_text, cycles=1)
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
+                momir_name, momir_img = get_momir_avatar_card()
+                current_card = momir_name
+                printer.print_card_image(momir_img)
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
                 print("=> Shutdown requested. Exiting...")
@@ -138,6 +146,9 @@ def main():
             # double click currently not used, long press to reset program
             rotary_button_state = rotary_encoder_handler.get_state()
             if rotary_button_state == ButtonState.SINGLE_CLICK:
+                card_name, card_img = get_random_creature_card(rotary_value, db)
+                current_card = card_name
+                printer.print_card_image(card_img)
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
                 # do nothing for now
