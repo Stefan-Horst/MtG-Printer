@@ -147,7 +147,7 @@ class DisplayManager:
         
         # Animation loop showing rotating bars around text until the event is set
         def _show_animation(event: Event):
-            while not event.is_set():
+            while True:
                 for frame in range(path_length / size // speed):
                     with regulator:
                         start_positions = [(frame * size * speed) % path_length, (frame * size * speed + path_length // 2) % path_length]
@@ -163,6 +163,8 @@ class DisplayManager:
                             # Static text in the middle.
                             for pos, line in pos_line_tuples:
                                 draw.text(pos, line, fill="white")
+                    if event.is_set():
+                        return
         
         # Display the loading animation in a separate thread
         self.toggle_loading_animation_event.clear()
