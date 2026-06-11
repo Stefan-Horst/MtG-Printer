@@ -2,6 +2,8 @@ import os
 import sys
 import subprocess
 import socket
+import time
+from typing import Literal
 
 import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
@@ -20,10 +22,13 @@ SKIP_VALUES = [14]    # mana values with no creature cards
 CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
 
 
-def init():
+def init() -> bool:
     """Initialize the program by downloading and processing card data and images. 
-    This function should be called once at the start of the program."""
-
+    This function should be called once at the start of the program.
+    
+    Returns:
+        bool: True if initialization was successful, False otherwise.
+    """
     # Step 1: Download card data from Scryfall API and save to JSON file
     print("=> Downloading card data from Scryfall...")
     display.display_loading_screen("[1/4] Downloading card data...", size=1)
@@ -33,7 +38,7 @@ def init():
         success = download_scryfall_data()
         if not success:
             print("Failed to download card data from Scryfall again.\nExiting.")
-            sys.exit(1)
+            return False
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
     print("=> Loading card data into database...")
@@ -43,7 +48,7 @@ def init():
         db = DatabaseManager()
     except Exception as e:
         print(f"Failed to create or open database: {e}.\nExiting.")
-        sys.exit(1)
+        return False
     
     file_image_data = []
     for card_data in load_scryfall_card_data_chunks():
@@ -56,8 +61,7 @@ def init():
             except Exception as e:
                 print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}.\nExiting.")
                 clear_local_data() # remove card data to avoid inconsistent state on next run
-                db.close()
-                sys.exit(1)
+                return False
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
     
@@ -70,8 +74,7 @@ def init():
         except Exception as e:
             print(f"Failed to commit changes to database: {e}\nExiting.")
             clear_local_data() # remove card data to avoid inconsistent state on next run
-            db.close()
-            sys.exit(1)
+            return False
     db.close()
 
     # Step 3: Download card images based on the downloaded card data
@@ -90,7 +93,7 @@ def init():
     if failed_downloads:
         print(f"Failed to download images for {len(failed_downloads)} cards. Exiting.")
         clear_local_data() # remove card data to avoid inconsistent state on next run
-        sys.exit(1)
+        return False
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     print("=> Processing card images...")
@@ -100,14 +103,18 @@ def init():
     except Exception as e:
         print(f"Failed to process images: {e}\nExiting.")
         clear_local_data() # remove card data to avoid inconsistent state on next run
-        sys.exit(1)
+        return False
+    return True
 
-def main():
-    """Main loop of the program, handling button events and updating the display and printer accordingly."""
+def main() -> Literal["shutdown", "restart", "exit"]:
+    """Main loop of the program, handling button events and updating the display and printer accordingly.
+    This function runs indefinitely until a shutdown or restart is triggered by a button event or an error occurs.
     
+    Returns:
+        Literal["shutdown", "restart", "exit"]: The exit mode indicating the requested action.
+    """
     print("=> Entering main loop. Waiting for button events...")
     display.display_text("Ready for input!")
-    global exit_mode
     rotary_value = 0
     current_card = None
     try:
@@ -130,8 +137,7 @@ def main():
             elif button_state == ButtonState.LONG_PRESS:
                 display.display_text("Shutting down...")
                 print("=> Shutdown requested. Exiting...")
-                exit_mode = "shutdown"
-                break # exit program and trigger shutdown
+                return "shutdown" # exit program and trigger shutdown
             
             # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
             # the value wraps around if it would exceed the specified min and max values and specified values are skipped
@@ -173,9 +179,12 @@ def main():
         print("\n=> Keyboard interrupt received. Exiting...")
     except Exception as e:
         print(f"\n=> An error occurred: {e}\nRestarting...")
-        exit_mode = "restart"
+        display.display_text("An error occurred.\nRestarting...")
+        time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting
+        return "restart"
+    return "exit" # just exit the program
 
-def has_internet_connection():
+def has_internet_connection() -> bool:
     """Check if there is an active internet connection by trying to connect to a known host. 
     Not fail-safe, only checks a specific host and port, but is a good indicator.
     
@@ -189,6 +198,17 @@ def has_internet_connection():
     except Exception:
         pass
     return False
+
+def close() -> None:
+    """Clean up resources on program exit."""
+    try: db.close()
+    except Exception: pass
+    try: printer.close() 
+    except Exception: pass
+    try: display.close() 
+    except Exception: pass
+    try: gpio.close() 
+    except Exception: pass
 
 
 if __name__ == "__main__":
@@ -213,32 +233,43 @@ if __name__ == "__main__":
                                   rotary_encoder_handler.button_callback)
     except Exception as e:
         print(f"Failed to initialize hardware components: {e}")
-        sys.exit(1)
+        close()
+        subprocess.run(["shutdown"]) # shut down because user cannot be shown error message on display and would not know what is happening otherwise
     
     ### INIT DATA
     
+    init_success = True
     if args.skipinit:
         print("=> Skipping initialization steps...")
     elif has_internet_connection():
-        init()
+        init_success = init()
     else:
         print("=> No internet connection detected. Skipping initialization steps...")
+    gpio.toggle_led_blink(False) # stop LED blinking after initialization is done
+    
+    # Restart the program to try initialization again on next run or shutdown if button pressed
+    if not init_success: 
+        gpio.toggle_led_blink(True, interval=0.2) # blink LED rapidly to indicate initialization failure
+        if button_handler.is_pressed():
+            print("=> Initialization failed. Manually shutting down...")
+            display.display_text("Init failed.\nShutting down...")
+            exit_mode = "shutdown"
+        else:
+            print("=> Initialization failed. Restarting...")
+            display.display_text("Init failed.\nRestarting...")
+            exit_mode = "restart"
+        time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting or shutting down
     
     ### MAIN LOOP
     
-    gpio.toggle_led_blink(False) # stop LED blinking after initialization is done
-    gpio.toggle_button_led(True) # turn on LED to indicate that the program is ready for input
-    db = DatabaseManager()
-    exit_mode = ""
-    main()
+    if init_success: # Only enter main loop if initialization was successful
+        gpio.toggle_button_led(True) # turn on LED to indicate that the program is ready for input
+        db = DatabaseManager()
+        exit_mode = main()    
     
     ### CLEANUP
 
-    db.close()
-    printer.close()
-    display.close()
-    gpio.close()
-
+    close()
     if exit_mode == "shutdown": # trigger system shutdown
         subprocess.run(["shutdown"])
     elif exit_mode == "restart": # restart the program
