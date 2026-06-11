@@ -14,7 +14,9 @@ class DisplayManager:
     def __init__(self):
         serial = luma_i2c(port=1, address=0x3C)
         self.display = sh1106(serial, width=128, height=64)
-        self.toggle_loading_animation_event = Event() # event to control loading animation thread
+        # Thread and event to control loading animation
+        self.toggle_loading_animation_thread = None
+        self.toggle_loading_animation_event = Event()
 
     def display_text(self, text: str) -> None:
         """Display text on the OLED display.
@@ -112,7 +114,6 @@ class DisplayManager:
             speed: Speed of the rotating bar animation
             fps: Frames per second for the animation
         """
-        self.stop_loading_screen() # Stop any existing loading animation before starting a new one
         width = self.display.width
         height = self.display.height
         regulator = framerate_regulator(fps=fps)
@@ -171,8 +172,12 @@ class DisplayManager:
                         return
         
         # Display the loading animation in a separate thread
+        if self.toggle_loading_animation_thread: # Ensure only one loading animation thread is running at a time
+            self.toggle_loading_animation_event.set()
+            self.toggle_loading_animation_thread.join()
         self.toggle_loading_animation_event.clear()
-        Thread(target=_show_animation, args=(self.toggle_loading_animation_event,)).start()
+        self.toggle_loading_animation_thread = Thread(target=_show_animation, args=(self.toggle_loading_animation_event,))
+        self.toggle_loading_animation_thread.start()
         
     def stop_loading_screen(self):
         """Stop the loading screen animation and clear the display."""
