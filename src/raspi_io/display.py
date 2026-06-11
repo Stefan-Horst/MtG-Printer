@@ -179,7 +179,7 @@ class DisplayManager:
         self.toggle_loading_animation_thread = Thread(target=_show_animation, args=(self.toggle_loading_animation_event,))
         self.toggle_loading_animation_thread.start()
         
-    def stop_loading_screen(self):
+    def stop_loading_screen(self) -> None:
         """Stop the loading screen animation and clear the display."""
         self.toggle_loading_animation_event.set()
         self.clear_display()
@@ -190,4 +190,8 @@ class DisplayManager:
             draw.rectangle(self.display.bounding_box, outline="white", fill="black")
     
     def close(self) -> None:
+        """Clean up the display resources and stop any running animations."""
+        if self.toggle_loading_animation_thread:
+            self.toggle_loading_animation_event.set()
+            self.toggle_loading_animation_thread.join()
         self.display.cleanup()
