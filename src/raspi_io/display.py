@@ -112,6 +112,7 @@ class DisplayManager:
             speed: Speed of the rotating bar animation
             fps: Frames per second for the animation
         """
+        self.stop_loading_screen() # Stop any existing loading animation before starting a new one
         width = self.display.width
         height = self.display.height
         regulator = framerate_regulator(fps=fps)
@@ -150,17 +151,20 @@ class DisplayManager:
             while True:
                 for frame in range(path_length / size // speed):
                     with regulator:
-                        start_positions = [(frame * size * speed) % path_length, (frame * size * speed + path_length // 2) % path_length]
+                        actual_frame = frame * size * speed
+                        start_positions = [
+                            actual_frame % path_length, 
+                            (actual_frame + path_length // 2) % path_length
+                        ]
                         # Generate points for the rotating bars based on the current frame and bar length
                         points = []
                         for start in start_positions:
                             for step in range(bar_length * size):
                                 x, y = path[(start + step) % path_length]
                                 points.append((x, y))
+                        # Draw two opposite white bars moving along the outer margin and static text in the middle 
                         with canvas(self.display) as draw:
-                            # Draw two opposite white bars moving along the outer margin.
                             draw.point(points, fill="white")
-                            # Static text in the middle.
                             for pos, line in pos_line_tuples:
                                 draw.text(pos, line, fill="white")
                     if event.is_set():
