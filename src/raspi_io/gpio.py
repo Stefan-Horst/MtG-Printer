@@ -97,5 +97,8 @@ def toggle_led_blink(on: bool = True, interval: float = 0.5) -> None:
         toggle_led_event.set()
 
 def close() -> None:
-    """Clean up GPIO settings. Must be called on program exit."""
+    """Clean up GPIO settings and stop any running threads."""
+    if toggle_led_thread:
+        toggle_led_event.set()
+        toggle_led_thread.join()
     GPIO.cleanup()
