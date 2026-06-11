@@ -128,11 +128,14 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                     display.display_scrolling_text(oracle_text, cycles=1)
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
+                gpio.toggle_led_blink(True)
                 display.display_loading_screen("Printing Momir Avatar!")
                 momir_name, momir_img = get_momir_avatar_card()
                 current_card = momir_name
                 printer.print_card_image(momir_img)
                 display.stop_loading_screen()
+                gpio.toggle_led_blink(False)
+                gpio.toggle_button_led(True) # turn button LED back on after loading screen
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
                 display.display_text("Shutting down...")
@@ -163,12 +166,15 @@ def main() -> Literal["shutdown", "restart", "exit"]:
             # double click currently not used, long press to reset program
             rotary_button_state = rotary_encoder_handler.get_state()
             if rotary_button_state == ButtonState.SINGLE_CLICK:
+                gpio.toggle_led_blink(True)
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
                 card_name, card_img = get_random_creature_card(rotary_value, db)
                 current_card = card_name
                 printer.print_card_image(card_img)
                 display.stop_loading_screen()
+                gpio.toggle_led_blink(False)
+                gpio.toggle_button_led(True) # turn button LED back on after loading screen
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
                 # do nothing for now
