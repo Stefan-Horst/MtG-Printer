@@ -26,6 +26,7 @@ def init():
 
     # Step 1: Download card data from Scryfall API and save to JSON file
     print("=> Downloading card data from Scryfall...")
+    display.display_loading_screen("[1/4] Downloading card data...", size=1)
     success = download_scryfall_data()
     if not success:
         print("Failed to download card data from Scryfall. Trying again...")
@@ -36,6 +37,7 @@ def init():
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
     print("=> Loading card data into database...")
+    display.display_loading_screen("[2/4] Loading data into db...", size=2)
     try:
         create_database(ignore_if_exists=True)
         db = DatabaseManager()
@@ -58,6 +60,7 @@ def init():
                 sys.exit(1)
         image_urls = get_card_image_urls(card_data)
         file_image_data.extend(image_urls)
+    
     try:
         db.commit()
     except Exception:
@@ -73,6 +76,7 @@ def init():
 
     # Step 3: Download card images based on the downloaded card data
     print("=> Downloading card images...")
+    display.display_loading_screen("[3/4] Downloading card images...", size=3)
     failed_downloads = download_multiple_card_images(file_image_data, skip_existing=True)
     print(f"Finished downloading images. {len(failed_downloads)} failed downloads.")
     for i in range(IMAGE_DOWNLOAD_RETRIES):
@@ -90,6 +94,7 @@ def init():
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     print("=> Processing card images...")
+    display.display_loading_screen("[4/4] Processing card images...", size=4)
     try:
         process_all_images(skip_existing=True)
     except Exception as e:
@@ -101,6 +106,7 @@ def main():
     """Main loop of the program, handling button events and updating the display and printer accordingly."""
     
     print("=> Entering main loop. Waiting for button events...")
+    display.display_text("Ready for input!")
     global exit_mode
     rotary_value = 0
     current_card = None
@@ -115,11 +121,14 @@ def main():
                     display.display_scrolling_text(oracle_text, cycles=1)
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
+                display.display_loading_screen("Printing Momir Avatar!")
                 momir_name, momir_img = get_momir_avatar_card()
                 current_card = momir_name
                 printer.print_card_image(momir_img)
+                display.stop_loading_screen()
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
+                display.display_text("Shutting down...")
                 print("=> Shutdown requested. Exiting...")
                 exit_mode = "shutdown"
                 break # exit program and trigger shutdown
@@ -133,6 +142,7 @@ def main():
                     rotary_value += 1
                 if rotary_value > ROTARY_MAX_VALUE:
                     rotary_value = ROTARY_MIN_VALUE
+                display.display_text(f"Mana Cost: {rotary_value}")
                 rotary_encoder_handler.reset_rotary()
             elif rotary_state == RotaryState.LEFT:
                 rotary_value -= 1
@@ -140,15 +150,19 @@ def main():
                     rotary_value -= 1
                 if rotary_value < ROTARY_MIN_VALUE:
                     rotary_value = ROTARY_MAX_VALUE
+                display.display_text(f"Mana Cost: {rotary_value}")
                 rotary_encoder_handler.reset_rotary()
             
             # handle rotary encoder push button: single click to confirm selected value, 
             # double click currently not used, long press to reset program
             rotary_button_state = rotary_encoder_handler.get_state()
             if rotary_button_state == ButtonState.SINGLE_CLICK:
+                size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
+                display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
                 card_name, card_img = get_random_creature_card(rotary_value, db)
                 current_card = card_name
                 printer.print_card_image(card_img)
+                display.stop_loading_screen()
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
                 # do nothing for now
@@ -221,8 +235,8 @@ if __name__ == "__main__":
     ### CLEANUP
 
     db.close()
-    display.close()
     printer.close()
+    display.close()
     gpio.close()
 
     if exit_mode == "shutdown": # trigger system shutdown
