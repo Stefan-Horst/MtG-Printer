@@ -37,7 +37,7 @@ def add_button_callback(button_callback: Callable[[int, Callable[[int], bool], i
     Args:
         button_callback: Callback function to handle button events.
     """
-    # add param to callback function to distinguish between press and release events in the same callback
+    # Add param to callback function to distinguish between press and release events in the same callback
     button_callback_wrapper = lambda _: button_callback(_, GPIO.input, BUTTON_PIN)
     GPIO.add_event_detect(BUTTON_PIN, GPIO.BOTH, callback=button_callback_wrapper, bouncetime=BUTTON_BOUNCETIME)
 
@@ -50,12 +50,12 @@ def add_rotary_callbacks(rotary_callback: Callable[[int, Callable[[int], bool], 
         rotary_callback: Callback function to handle rotary encoder CLK and DT pin events.
         button_callback: Callback function to handle rotary encoder button events.
     """
-    # add params to callback function to enable accessing both pin inputs for rotation direction detection
+    # Add params to callback function to enable accessing both pin inputs for rotation direction detection
     rotary_callback_wrapper = lambda _: rotary_callback(_, GPIO.input, ROTARY_CLK, ROTARY_DT)
-    # need to use GPIO.BOTH as the rotary encoder cycles between HIGH and LOW resting positions during rotation
+    # Need to use GPIO.BOTH as the rotary encoder cycles between HIGH and LOW resting positions during rotation
     GPIO.add_event_detect(ROTARY_CLK, GPIO.BOTH, callback=rotary_callback_wrapper, bouncetime=ROTARY_BOUNCETIME)
     GPIO.add_event_detect(ROTARY_DT, GPIO.BOTH, callback=rotary_callback_wrapper, bouncetime=ROTARY_BOUNCETIME)
-    # add param to callback function to distinguish between press and release events in the same callback
+    # Add param to callback function to distinguish between press and release events in the same callback
     button_callback_wrapper = lambda _: button_callback(_, GPIO.input, ROTARY_SW)
     GPIO.add_event_detect(ROTARY_SW, GPIO.BOTH, callback=button_callback_wrapper, bouncetime=BUTTON_BOUNCETIME)
 
@@ -67,6 +67,7 @@ def toggle_button_led(on: bool = True) -> None:
     """
     GPIO.output(BUTTON_LED, GPIO.HIGH if on else GPIO.LOW)
 
+toggle_led_thread: Thread | None = None
 toggle_led_event = Event()
 
 def toggle_led_blink(on: bool = True, interval: float = 0.5) -> None:
@@ -83,9 +84,15 @@ def toggle_led_blink(on: bool = True, interval: float = 0.5) -> None:
             time.sleep(interval)
             toggle_button_led(False)
             time.sleep(interval)
+    
+    global toggle_led_thread
     if on:
+        if toggle_led_thread: # Ensure only one blinking thread is running at a time
+            toggle_led_event.set()
+            toggle_led_thread.join()
         toggle_led_event.clear()
-        Thread(target=_blink, args=(toggle_led_event,)).start()
+        toggle_led_thread = Thread(target=_blink, args=(toggle_led_event,))
+        toggle_led_thread.start()
     else:
         toggle_led_event.set()
 
