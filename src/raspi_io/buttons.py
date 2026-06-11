@@ -26,6 +26,7 @@ class ButtonHandler:
         self.last_button_press = 0
         self.last_button_release = 0
         self.state = ButtonState.IDLE
+        self.pressed = False
         self.blocked = False
         self.lock = Lock()
     
@@ -46,12 +47,14 @@ class ButtonHandler:
     def _press_callback(self, _: int) -> None:
         """Callback function to handle button press events. Must be called with 
         GPIO event detection on press and used together with release_callback."""
+        self.pressed = True
         with self.lock:
             self.last_button_press = time.time()
-    
+            
     def _release_callback(self, _: int) -> None:
         """Callback function to handle button release events. Must be called with 
         GPIO event detection on release and used together with press_callback."""
+        self.pressed = False
         button_release = time.time()
         with self.lock:
             if self.blocked:
@@ -93,6 +96,15 @@ class ButtonHandler:
                 # if single click detected but not blocked yet, return idle until certain if it's double click or not
                 return ButtonState.IDLE
         return self.state
+    
+    def is_pressed(self) -> bool:
+        """Check if the button is currently pressed. 
+        Could be during any type of click or long press.
+        
+        Returns:
+            bool: True if the button is pressed, False otherwise.
+        """
+        return self.pressed
 
 
 class RotaryState(Enum):
