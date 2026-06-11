@@ -211,7 +211,7 @@ def has_internet_connection() -> bool:
             print("No internet connection detected.")
     return False
 
-def close() -> None:
+def cleanup() -> None:
     """Clean up resources on program exit."""
     try: db.close()
     except Exception: pass
@@ -245,7 +245,7 @@ if __name__ == "__main__":
                                   rotary_encoder_handler.button_callback)
     except Exception as e:
         print(f"Failed to initialize hardware components: {e}")
-        close()
+        cleanup()
         subprocess.run(["shutdown"]) # shut down because user cannot be shown error message on display and would not know what is happening otherwise
     
     ### INIT DATA
@@ -281,7 +281,7 @@ if __name__ == "__main__":
     
     ### CLEANUP
 
-    close()
+    cleanup()
     if exit_mode == "shutdown": # trigger system shutdown
         subprocess.run(["shutdown"])
     elif exit_mode == "restart": # restart the program
