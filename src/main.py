@@ -192,7 +192,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
 
 def has_internet_connection() -> bool:
     """Check if there is an active internet connection by trying to connect to a known host. 
-    Not fail-safe, only checks a specific host and port, but is a good indicator.
+    Not fail-safe, only checks a specific host and port, but is sufficient in this context.
     
     Returns:
         bool: True if there is an internet connection, False otherwise.
@@ -202,7 +202,13 @@ def has_internet_connection() -> bool:
         s.close()
         return True
     except Exception:
-        pass
+        print("No internet connection. Trying again...")
+        try:
+            s = socket.create_connection((CONNECTION_TEST_HOST, 80), timeout=1)
+            s.close()
+            return True
+        except Exception:
+            print("No internet connection detected.")
     return False
 
 def close() -> None:
