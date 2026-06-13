@@ -7,7 +7,11 @@ from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME
 
 
 def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, Image.Image]:
-    """Get a random creature card printer image with the specified mana cost from the database.
+    """Get a random creature card printer image with the specified mana cost from the database. 
+    Handles double-faced cards according to the rules for legal token targets in Momir Basic 
+    (e.g., for mdfcs, either face can be selected if both are creatures; for transform cards, 
+    only the front face can be selected since the back face is not a legal token target; for 
+    adventure and prepare cards, the primary face containing the creature is selected).
     
     Args:
         mana_cost: The desired mana cost of the creature card.
@@ -16,13 +20,38 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
         tuple: A tuple containing the card name and a PIL Image object representing the card printer image.
     """
     result = db.execute_query(
-        "SELECT name FROM cards WHERE type_line LIKE ? AND cmc = ?", 
+        "SELECT name, type_line, layout FROM cards WHERE type_line LIKE ? AND cmc = ?", 
         ("%Creature%", mana_cost)
     )
     if not result:
         raise ValueError("No matching creature card found")
-    card_name = random.choice(result)[0]
-    return (card_name, Image.open(f"{PRINTER_IMAGE_DIR}/{card_name}"))
+    
+    # Select a random card while handling double-faced cards and skipping illegal cards
+    while True: # loop until legal token target is found
+        card_name, type_line, layout = random.choice(result)
+        if " // " in type_line: # handle double-faced cards
+            name1, name2 = [n.strip() for n in card_name.split(" // ")]
+            type1, type2 = [t.strip() for t in type_line.split(" // ")]
+            if layout == "modal_dfc": # for mdfc cards use the face that is a creature
+                if "Creature" in type1:
+                    if "Creature" in type2: # select random face if both sides are creatures
+                        face_name = random.choice([name1, name2])
+                    else:
+                        face_name = name1
+                else:
+                    face_name = name2
+            elif layout == "transform": # for transform cards use the front face if it is a creature
+                if "Creature" in type1:
+                    face_name = name1
+                else:
+                    continue # skip if front face is not a creature since back face is not a valid token target
+            else: # for other double-faced cards (e.g., adventure, prepare) just select the first face as default
+                if "Creature" in type1:
+                    face_name = name1
+                else: # edge case that should theoretically not exist
+                    face_name = name2
+        break
+    return (face_name, Image.open(f"{PRINTER_IMAGE_DIR}/{face_name}"))
 
 def get_momir_avatar_card() -> tuple[str, Image.Image]:
     """Get the Momir avatar card printer image from the database.
