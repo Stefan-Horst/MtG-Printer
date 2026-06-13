@@ -167,6 +167,20 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 f.write(chunk)
 
+def clear_local_data(data_dir: str = DATA_DIR) -> None:
+    """Clear local card data and metadata files.
+    
+    Args:
+        data_dir: The directory where the data and metadata files are stored
+    """
+    data_path = Path(data_dir)
+    data_file = data_path / DATA_FILE
+    metadata_file = data_path / METADATA_FILE
+    if data_file.exists():
+        data_file.unlink()
+    if metadata_file.exists():
+        metadata_file.unlink()
+
 ### CARD IMAGES
 
 def download_images_from_card_data_list(card_data: list[dict], skip_existing: bool = True) -> list[tuple[str, str]]:
