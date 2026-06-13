@@ -250,8 +250,12 @@ if __name__ == "__main__":
     
     ### INIT DATA
     
-    init_success = True
-    if args.skipinit:
+    if not args.skipinit:
+        display.display_text("Startup successful.\nBeginning initialization.")
+        time.sleep(1) # wait a moment to give user chance to press button for skipping initialization steps if desired
+    
+    init_success = True # only false if initialization steps were attempted and then failed
+    if args.skipinit or button_handler.is_pressed():
         print("=> Skipping initialization steps...")
     elif has_internet_connection():
         init_success = init()
