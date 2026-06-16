@@ -73,7 +73,7 @@ Prerequisites depend on the dongle you have. I have a cheap one and fortunately 
 		- copy file to services: cp {name}.service /etc/systemd/system/
 		- enable: systemctl enable {service-name.service}
 
-</details></br>
+</details>
 
 <details>
 <summary>Custom considerations</summary>
@@ -123,7 +123,7 @@ You must install python and probably some other stuff + configuration to get the
 - install luma: pip install luma.oled
 - display is actually ch1116 so use luma sh1106 class, but in there (oled>device>init.py) is display func change self.command(set_page_address, 0x02, 0x10) to self.command(set_page_address, 0x00, 0x10)
 
-</details></br>
+</details>
 
 After everything is ready, clone/copy this code and run `pip install .`. You can then run this program via `python main.py`. If you want to skip card data updating, add the `-s` flag.
 If everything works, you can set up a system service to run the program automatically after every system boot.
