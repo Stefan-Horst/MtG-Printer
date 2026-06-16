@@ -3,7 +3,7 @@ from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
 from card_handling.process_image import PRINTER_IMAGE_DIR
-from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME
+from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME, make_filename_valid
 
 
 def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, Image.Image]:
@@ -51,7 +51,9 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
                 else: # edge case that should theoretically not exist
                     face_name = name2
         break
-    return (face_name, Image.open(f"{PRINTER_IMAGE_DIR}/{face_name}"))
+    
+    img_name = make_filename_valid(face_name)
+    return (face_name, Image.open(f"{PRINTER_IMAGE_DIR}/{img_name}"))
 
 def get_momir_avatar_card() -> tuple[str, Image.Image]:
     """Get the Momir avatar card printer image from the database.
