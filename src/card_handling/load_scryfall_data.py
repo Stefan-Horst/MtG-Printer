@@ -293,10 +293,23 @@ async def _download_card_image(name: str, image_url: str, session: aiohttp.Clien
         if len(str(e)) > 0:
             print(f"Failed to download image for {name}: {str(e)}")
         return (name, image_url)
-    name = name.replace("/", "_").replace('"', "").replace("?", "").replace(":", "").strip()
+    name = make_filename_valid(name)
     image = Image.open(BytesIO(content))
     image.save(f"{image_dir}/{name}.jpg")
     return (None, None)
+
+def make_filename_valid(name: str) -> str:
+    """
+    Make a filename valid by replacing or removing invalid characters.
+    Dashes are replaced with underscores, and single quotes are replaced with apostrophes.
+    
+    Args:
+        name: The name to make valid
+    
+    Returns:
+        The valid filename
+    """
+    return name.replace("/", "_").replace('"', "'").replace("?", "").replace(":", "").strip()
 
 def get_card_image_urls(card_data: dict, image_type: str = IMAGE_TYPE) -> list[tuple[str, str]]:
     """
