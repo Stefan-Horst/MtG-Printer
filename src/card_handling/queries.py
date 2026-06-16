@@ -80,3 +80,19 @@ def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
     if not result:
         raise ValueError("Card not found in database")
     return result[0][0]
+
+def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:    
+    """Get a list of all creature mana costs that do not exist in the database. 
+    Only counts values between the lowest and the highest mana cost in the database.
+    
+    Args:
+        db: An instance of the DatabaseManager to query the database.
+    Returns:
+        list: A list of the creature mana costs that do not exist in the database.
+    """
+    result = db.execute_query(
+        "SELECT DISTINCT cmc FROM cards WHERE type_line LIKE ?", 
+        ("%Creature%",)
+    )
+    mana_costs = [r[0] for r in result]
+    return [cost for cost in range(mana_costs[-1]+1) if cost not in mana_costs]
