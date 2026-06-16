@@ -12,12 +12,10 @@ from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, R
 from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
-from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text, get_nonexistent_creature_mana_costs
+from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text, get_nonexistent_creature_mana_costs, get_mana_cost_range
 
 
 IMAGE_DOWNLOAD_RETRIES = 3
-ROTARY_MAX_VALUE = 16 # maximum possible mana cost
-ROTARY_MIN_VALUE = 0  # minimum possible mana cost
 CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
 
 
@@ -114,6 +112,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
     """
     print("=> Entering main loop. Waiting for button events...")
     display.display_text("Ready for input!")
+    rotary_min_value, rotary_max_value = get_mana_cost_range(db)
     skip_values = get_nonexistent_creature_mana_costs(db)
     rotary_value = 0
     current_card = None
@@ -149,16 +148,16 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 rotary_value += 1
                 if rotary_value in skip_values:
                     rotary_value += 1
-                if rotary_value > ROTARY_MAX_VALUE:
-                    rotary_value = ROTARY_MIN_VALUE
+                if rotary_value > rotary_max_value:
+                    rotary_value = rotary_min_value
                 display.display_text(f"Mana Cost: {rotary_value}")
                 rotary_encoder_handler.reset_rotary()
             elif rotary_state == RotaryState.LEFT:
                 rotary_value -= 1
                 if rotary_value in skip_values:
                     rotary_value -= 1
-                if rotary_value < ROTARY_MIN_VALUE:
-                    rotary_value = ROTARY_MAX_VALUE
+                if rotary_value < rotary_min_value:
+                    rotary_value = rotary_max_value
                 display.display_text(f"Mana Cost: {rotary_value}")
                 rotary_encoder_handler.reset_rotary()
             
