@@ -81,6 +81,20 @@ def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
         raise ValueError("Card not found in database")
     return result[0][0]
 
+def get_mana_cost_range(db: DatabaseManager) -> tuple[int, int]:
+    """Get the minimum and maximum mana cost values from the database.
+    
+    Args:
+        db: An instance of the DatabaseManager to query the database.
+    Returns:
+        tuple: A tuple containing the minimum and maximum mana cost values.
+    """
+    result = db.execute_query(
+        "SELECT MIN(cmc), MAX(cmc) FROM cards WHERE type_line LIKE ?", 
+        ("%Creature%",)
+    )
+    return result[0][0], result[0][1]
+
 def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:    
     """Get a list of all creature mana costs that do not exist in the database. 
     Only counts values between the lowest and the highest mana cost in the database.
