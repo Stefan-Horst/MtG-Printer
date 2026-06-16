@@ -12,13 +12,12 @@ from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, R
 from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
-from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text
+from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text, get_nonexistent_creature_mana_costs
 
 
 IMAGE_DOWNLOAD_RETRIES = 3
 ROTARY_MAX_VALUE = 16 # maximum possible mana cost
 ROTARY_MIN_VALUE = 0  # minimum possible mana cost
-SKIP_VALUES = [14]    # mana values with no creature cards
 CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
 
 
@@ -115,6 +114,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
     """
     print("=> Entering main loop. Waiting for button events...")
     display.display_text("Ready for input!")
+    skip_values = get_nonexistent_creature_mana_costs(db)
     rotary_value = 0
     current_card = None
     try:
@@ -147,7 +147,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
             rotary_state = rotary_encoder_handler.get_rotary_state()
             if rotary_state == RotaryState.RIGHT:
                 rotary_value += 1
-                if rotary_value in SKIP_VALUES:
+                if rotary_value in skip_values:
                     rotary_value += 1
                 if rotary_value > ROTARY_MAX_VALUE:
                     rotary_value = ROTARY_MIN_VALUE
@@ -155,7 +155,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 rotary_encoder_handler.reset_rotary()
             elif rotary_state == RotaryState.LEFT:
                 rotary_value -= 1
-                if rotary_value in SKIP_VALUES:
+                if rotary_value in skip_values:
                     rotary_value -= 1
                 if rotary_value < ROTARY_MIN_VALUE:
                     rotary_value = ROTARY_MAX_VALUE
