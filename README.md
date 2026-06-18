@@ -42,6 +42,8 @@ List of relevant hardware parts used:
 Connect everything as shown in the wiring diagram. You can use a different pin setup, but the printer must be connected to the UART pins and the display to the I2C pins. 
 My LED button has for outputs with two of these being mass for the button and LED, respectively; it's okay if your button only has three pins.
 
+![Wiring Diagram](/misc/Wiring.png)
+
 Many choices including the OS depended on the very limited hardware. Flash DietPi on your storage medium and start the RPI. Make sure you have internet access on the device until after you have successfully started the main program at least once.
 
 <details>
