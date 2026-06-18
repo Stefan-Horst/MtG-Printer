@@ -20,8 +20,8 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
         tuple: A tuple containing the card name and a PIL Image object representing the card printer image.
     """
     result = db.execute_query(
-        "SELECT name, type_line, layout FROM cards WHERE type_line LIKE ? AND cmc = ?", 
-        ("%Creature%", mana_cost)
+        "SELECT name, type_line, layout FROM cards WHERE type_line LIKE %Creature% AND cmc = ?", 
+        (mana_cost,)
     )
     if not result:
         raise ValueError("No matching creature card found")
@@ -90,8 +90,7 @@ def get_mana_cost_range(db: DatabaseManager) -> tuple[int, int]:
         tuple: A tuple containing the minimum and maximum mana cost values.
     """
     result = db.execute_query(
-        "SELECT MIN(cmc), MAX(cmc) FROM cards WHERE type_line LIKE ?", 
-        ("%Creature%",)
+        "SELECT MIN(cmc), MAX(cmc) FROM cards WHERE type_line LIKE %Creature%"
     )
     return result[0][0], result[0][1]
 
@@ -105,8 +104,7 @@ def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:
         list: A list of the creature mana costs that do not exist in the database.
     """
     result = db.execute_query(
-        "SELECT DISTINCT cmc FROM cards WHERE type_line LIKE ?", 
-        ("%Creature%",)
+        "SELECT DISTINCT cmc FROM cards WHERE type_line LIKE %Creature%"
     )
     mana_costs = [r[0] for r in result]
     return [cost for cost in range(mana_costs[-1]+1) if cost not in mana_costs]
