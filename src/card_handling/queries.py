@@ -17,7 +17,7 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
     Handles double-faced cards according to the rules for legal token targets in Momir Basic 
     (e.g., for mdfcs, either face can be selected if both are creatures; for transform cards, 
     only the front face can be selected since the back face is not a legal token target; for 
-    adventure and prepare cards, the primary face containing the creature is selected).
+    adventure and prepare cards, the face name is set to None as it is not relevant).
     
     Args:
         mana_cost: The desired mana cost of the creature card.
@@ -51,11 +51,8 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
                     face_name = name1
                 else:
                     continue # skip if front face is not a creature since back face is not a valid token target
-            else: # for other double-faced cards (e.g., adventure, prepare) just select the first face as default
-                if "Creature" in type1:
-                    face_name = name1
-                else: # edge case that should theoretically not exist
-                    face_name = name2
+            else: # for other double-faced cards (e.g., adventure, prepare) no face (as in card side) is relevant
+                face_name = None
         break
     
     img_name = make_filename_valid(face_name)
