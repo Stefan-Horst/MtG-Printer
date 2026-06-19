@@ -69,22 +69,22 @@ def get_momir_avatar_card() -> tuple[str, Image.Image]:
     image_name = MOMIR_AVATAR_NAME
     return (image_name, Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}"))
 
-def get_card_oracle_text(card_name: str, db: DatabaseManager) -> str:
-    """Get the oracle text of a card from the database.
+def get_card_data(card_name: str, db: DatabaseManager) -> dict:
+    """Get the data of a card from the database.
     
     Args:
         card_name: The name of the card to query.
         db: An instance of the DatabaseManager to query the database.
     Returns:
-        str: The oracle text of the card.
+        dict: A dictionary containing the data of the card.
     """
     result = db.execute_query(
-        "SELECT oracle_text FROM cards WHERE name = ?", 
+        "SELECT * FROM cards WHERE name = ?", 
         (card_name,)
     )
     if not result:
         raise ValueError("Card not found in database")
-    return result[0][0]
+    return result[0]
 
 def get_mana_cost_range(db: DatabaseManager) -> tuple[int, int]:
     """Get the minimum and maximum mana cost values from the database.
