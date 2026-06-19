@@ -155,5 +155,5 @@ If an error is encountered at any step and the program cannot resolve it, it res
 ## Update to future versions of the game
 
 Magic is a permanently evolving game, introducing new mechanics and card types which may require adapting this software. Below is a list of aspects that could potentially require adjustments: 
-- queries.py: new double-faced card layouts (beyond transform & modal_dfc) might have to be handled in get_random_creature_card()
+- queries.py: new card layouts with multiple faces (beyond transform, modal_dfc, prepare, etc.) have to be added to the constants and new categories might need to be handled in get_random_creature_card() and get_standardized_card_dict()
 - load_scryfall_data.py: the ALLOWED_CARDS list and the legal card filter in _is_card_valid() if more or less cards should be indexed
