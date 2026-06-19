@@ -33,6 +33,7 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
         raise ValueError("No matching creature card found")
     
     # Select a random card while handling double-faced cards and skipping illegal cards
+    face_name = None
     while True: # loop until legal token target is found
         card_name, type_line, layout = random.choice(result)
         if " // " in type_line: # handle double-faced cards
@@ -51,11 +52,10 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
                     face_name = name1
                 else:
                     continue # skip if front face is not a creature since back face is not a valid token target
-            else: # for other double-faced cards (e.g., adventure, prepare) no face (as in card side) is relevant
-                face_name = None
+            # for other double-faced cards (e.g., adventure, prepare) no face (as in card side) is relevant
         break
     
-    img_name = make_filename_valid(face_name)
+    img_name = make_filename_valid(face_name if face_name is not None else card_name)
     return (card_name, face_name, Image.open(f"{PRINTER_IMAGE_DIR}/{img_name}"))
 
 def get_momir_avatar_card() -> tuple[str, Image.Image]:
