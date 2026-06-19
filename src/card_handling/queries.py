@@ -1,4 +1,5 @@
 import random
+from copy import deepcopy
 from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
@@ -113,3 +114,52 @@ def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:
     )
     mana_costs = [r[0] for r in result]
     return [cost for cost in range(mana_costs[-1]+1) if cost not in mana_costs]
+
+def get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> dict:
+    """Get a dictionary containing the standardized card information, meaning all relevant keys exist. 
+    Handles double-sided cards by using the data from the specified relevant face. 
+    Combines data for cards with multiple faces on one side into a single standardized entry 
+    where the names and oracle texts are combined, separated by " // ".
+    
+    Args:
+        card_info: A dictionary containing the card information.
+        relevant_face: The name of the face to use for double-faced cards.
+    Returns:
+        dict: A dictionary containing the standardized card information (for the relevant face).
+    """
+    if card_info["layout"] in MODAL_DOUBLE_SIDED_CARDS and relevant_face is None:
+        raise RuntimeError("Relevant face must be specified for modal double-faced cards")
+    elif card_info["layout"] in MULTIPLE_FACES_ON_SINGLE_SIDE_CARDS and relevant_face is not None:
+        raise RuntimeError("Relevant face should not be specified for cards with multiple faces on one side")
+    elif card_info["layout"] in DOUBLE_SIDED_ONLY_FRONT_VALID_CARDS: # only front face matters for transform cards
+        relevant_face = card_info["card_faces"][0]
+    
+    def _combine(key: str) -> str:
+        return " // ".join([face[key] for face in card_info["card_faces"]])
+    
+    card = deepcopy(card_info)
+    # If relevant face is given, set all card values to those of that face
+    if relevant_face is not None:
+        for face in card["card_faces"]:
+            if face["name"] == relevant_face:
+                for k, v in face.items():
+                    card[k] = v
+                break
+        else:
+            raise ValueError(f"Relevant face {relevant_face} not found in card faces")
+        # Make sure that power and toughness keys exist
+        if "power" not in card:
+            card["power"] = None
+        if "toughness" not in card:
+            card["toughness"] = None
+    # Handle cards with multiple faces on one side
+    elif "card_faces" in card:
+        card["name"] = _combine("name")
+        card["oracle_text"] = _combine("oracle_text")
+        card["mana_cost"] = _combine("mana_cost")
+        if "power" in card["card_faces"][0]:
+            card["power"] = _combine("power")
+        if "toughness" in card["card_faces"][0]:
+            card["toughness"] = _combine("toughness")
+
+    return card
