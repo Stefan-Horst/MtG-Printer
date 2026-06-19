@@ -12,7 +12,7 @@ from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, R
 from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import process_all_images
-from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_oracle_text, get_nonexistent_creature_mana_costs, get_mana_cost_range
+from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_data, get_standardized_card_dict, get_nonexistent_creature_mana_costs, get_mana_cost_range
 
 
 IMAGE_DOWNLOAD_RETRIES = 3
@@ -116,6 +116,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
     skip_values = get_nonexistent_creature_mana_costs(db)
     rotary_value = 0
     current_card = None
+    current_face = None
     try:
         while True:
             # handle main button events: single click to display context info, 
@@ -123,8 +124,9 @@ def main() -> Literal["shutdown", "restart", "exit"]:
             button_state = button_handler.get_state()
             if button_state == ButtonState.SINGLE_CLICK:
                 if current_card:
-                    oracle_text = get_card_oracle_text(current_card, db)
-                    display.display_scrolling_text(oracle_text, cycles=1)
+                    card_info = get_card_data(current_card, db)
+                    card_info = get_standardized_card_dict(card_info, current_face)
+                    display.display_scrolling_text(card_info["oracle_text"], cycles=1)
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
                 gpio.toggle_led_blink(True)
@@ -168,8 +170,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 gpio.toggle_led_blink(True)
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
-                card_name, card_img = get_random_creature_card(rotary_value, db)
-                current_card = card_name
+                current_card, current_face, card_img = get_random_creature_card(rotary_value, db)
                 printer.print_card_image(card_img)
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
