@@ -28,11 +28,55 @@ class DisplayManager:
             # adjust positioning as needed
             draw.text((10, 25), text, fill="white")
 
+    def display_card_info(self, card_data: dict) -> None:
+        """Display card info on the OLED display. Uses scrolling text with automatic line breaks.
+        
+        Args:
+            card_data: Dictionary containing card name, mana cost, type, oracle text, and power/toughness
+        """
+        name = card_data["name"]
+        mana_cost = card_data["mana_cost"]
+        card_type = card_data["type_line"]
+        oracle_text = card_data["oracle_text"]
+        power = card_data.get("power")
+        toughness = card_data.get("toughness")
+
+        font = ImageFont.load_default()
+        hyphen_width = font.getlength("-")
+        separator = "-" * max(1, int(self.display.width / hyphen_width))
+        while font.getlength(separator) > self.display.width:
+            separator = separator[:-1]
+        separator_width = font.getlength(separator)
+
+        def _right_align_text(text: str, target_width: float) -> str:
+            text_width = font.getlength(text)
+            if text_width >= target_width:
+                return text
+            space_count = target_width - text_width
+            return " " * space_count + text
+
+        mana_line = _right_align_text(str(mana_cost), separator_width)
+        text = (name + "\n" + mana_line + "\n" + separator + "\n" 
+                + card_type + "\n" + separator + "\n" 
+                + oracle_text.replace("\n", "\n\n")) # add empty line after each paragraph
+
+        power_toughness = None
+        if power is not None or toughness is not None:
+            power_part = str(power) if power is not None else ""
+            toughness_part = str(toughness) if toughness is not None else ""
+            power_toughness = f"{power_part}/{toughness_part}".strip()
+
+        if power_toughness:
+            text += "\n" + separator + "\n" + _right_align_text(power_toughness, separator_width)
+
+        self.display_scrolling_text(text.replace("—", "-"), paragraph_gap=False)
+    
     def display_scrolling_text(self, text: str, 
                                cycles: int = 1, 
                                start_pause: float = 4.0, 
                                scroll_delay: float = 1.5, 
-                               end_pause: float = 2.0) -> None:
+                               end_pause: float = 2.0,
+                               paragraph_gap: bool = True) -> None:
         """Display text with automatic line breaks and vertical scrolling if the text 
         has more lines than the display can show at once based on its width and height.
 
@@ -42,16 +86,17 @@ class DisplayManager:
             start_pause: Time to pause at the start of scrolling
             scroll_delay: Delay between each scroll step
             end_pause: Time to pause at the end of scrolling
+            paragraph_gap: Add an empty line after each paragraph
         """
         font = ImageFont.load_default()
-        lines = self._wrap_text(text, font, self.display.width)
+        lines = self._wrap_text(text, font, self.display.width, paragraph_gap)
         if not lines:
             lines = [""]
         line_height = font.getbbox("A")[3] - font.getbbox("A")[1]
         max_lines = max(1, self.display.height // line_height)
         total_lines = len(lines)
 
-        def draw_page(start_line: int) -> None:
+        def _draw_page(start_line: int) -> None:
             with canvas(self.display) as draw:
                 y = 0
                 for line in lines[start_line:start_line + max_lines]:
@@ -59,25 +104,26 @@ class DisplayManager:
                     y += line_height
 
         if total_lines <= max_lines:
-            draw_page(0)
+            _draw_page(0)
             return
 
         scroll_steps = total_lines - max_lines
         for _ in range(cycles):
-            draw_page(0)
+            _draw_page(0)
             time.sleep(start_pause)
             for offset in range(1, scroll_steps + 1):
-                draw_page(offset)
+                _draw_page(offset)
                 time.sleep(scroll_delay)
             time.sleep(end_pause)
 
-    def _wrap_text(self, raw_text: str, font: ImageFont, width: int) -> list[str]:
+    def _wrap_text(self, raw_text: str, font: ImageFont, width: int, paragraph_gap: bool = True) -> list[str]:
         """Wrap text into lines that fit the display width based on the provided font.
         
         Args:
             raw_text: Text to wrap
             font: Font to use for wrapping
             width: Width of the display in pixels
+            paragraph_gap: Add an empty line after each paragraph if True
         Returns:
             List of wrapped lines
         """
@@ -96,8 +142,9 @@ class DisplayManager:
                     lines.append(current_line)
                     current_line = word
             lines.append(current_line)
-            lines.append("") # empty line after each paragraph
-        return lines[:-1]
+            if paragraph_gap:
+                lines.append("") # empty line after each paragraph
+        return lines[:-1] if lines[-1] == "" else lines
     
     def display_loading_screen(self, text: str, 
                                size: int = 3, 
