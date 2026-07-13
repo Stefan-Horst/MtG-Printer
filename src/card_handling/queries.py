@@ -3,7 +3,7 @@ from copy import deepcopy
 from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
-from card_handling.process_image import PRINTER_IMAGE_DIR
+from card_handling.process_image import PRINTER_IMAGE_DIR_FULL
 from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME, make_filename_valid
 
 
@@ -12,7 +12,7 @@ MULTIPLE_FACES_ON_SINGLE_SIDE_CARDS = ["flip", "adventure", "prepare"] # Cards t
 DOUBLE_SIDED_ONLY_FRONT_VALID_CARDS = ["transform"] # Cards that can only be played on the front face
 
 
-def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, str, Image.Image]:
+def get_random_creature_card(mana_cost: int, db: DatabaseManager, image_dir: str = PRINTER_IMAGE_DIR_FULL) -> tuple[str, str, Image.Image]:
     """Get a random creature card printer image with the specified mana cost from the database. 
     Handles double-faced cards according to the rules for legal token targets in Momir Basic 
     (e.g., for mdfcs, either face can be selected if both are creatures; for transform cards, 
@@ -22,6 +22,7 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
     Args:
         mana_cost: The desired mana cost of the creature card.
         db: An instance of the DatabaseManager to query the database.
+        image_dir: The directory containing the printer images.
     Returns:
         tuple: A tuple containing the card name, face name, and a PIL Image object representing the card printer image.
     """
@@ -56,16 +57,19 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager) -> tuple[str, 
         break
     
     img_name = make_filename_valid(face_name if face_name is not None else card_name)
-    return (card_name, face_name, Image.open(f"{PRINTER_IMAGE_DIR}/{img_name}"))
+    return (card_name, face_name, Image.open(f"{image_dir}/{img_name}"))
 
-def get_momir_avatar_card() -> tuple[str, Image.Image]:
+def get_momir_avatar_card(image_dir: str = PRINTER_IMAGE_DIR_FULL) -> tuple[str, Image.Image]:
     """Get the Momir avatar card printer image from the database.
-    
+
+    Args:
+        image_dir: The directory containing the printer images.
+
     Returns:
         tuple: A tuple containing the card name and a PIL Image object representing the card printer image.
     """
     image_name = MOMIR_AVATAR_NAME
-    return (image_name, Image.open(f"{PRINTER_IMAGE_DIR}/{image_name}"))
+    return (image_name, Image.open(f"{image_dir}/{image_name}"))
 
 def get_card_data(card_name: str, db: DatabaseManager) -> dict:
     """Get the data of a card from the database.

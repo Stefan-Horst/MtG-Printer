@@ -13,13 +13,15 @@ from PIL import Image
 MOMIR_AVATAR_NAME = "Momir Vig, Simic Visionary Avatar"
 ALLOWED_CARDS = [MOMIR_AVATAR_NAME] # whitelisted cards to download even if they would not pass the validity filter
 
-IMAGE_DIR = "./data/card_images/raw"
+IMAGE_DIR_FULL = "./data/card_images/raw_full"
+IMAGE_DIR_ART = "./data/card_images/raw_art"
 DATA_DIR = "./data/card_data"
 METADATA_FILE = "metadata.json"
 DATA_FILE = "cards.json"
 
 BULK_TYPE = "oracle_cards"
-IMAGE_TYPE = "border_crop"
+IMAGE_TYPE_FULL = "border_crop"
+IMAGE_TYPE_ART = "art_crop"
 SCRYFALL_API_URL = "https://api.scryfall.com"
 BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
@@ -31,7 +33,8 @@ IMAGES_BATCH_SIZE = 500 # number of images to download at once in the async func
 
 ### JSON CARD DATA FILE LOADING
 
-def load_scryfall_card_data_chunks(filepath: str = DATA_DIR+"/"+DATA_FILE, exclude_invalid: bool = True) -> Generator[dict, None, None]:
+def load_scryfall_card_data_chunks(filepath: str = DATA_DIR+"/"+DATA_FILE, 
+                                   exclude_invalid: bool = True) -> Generator[dict, None, None]:
     """
     Load card data from a JSON file in chunks of single card dicts to limit memory usage.
     
@@ -183,7 +186,8 @@ def clear_local_data(data_dir: str = DATA_DIR) -> None:
 
 ### CARD IMAGES
 
-def download_images_from_card_data_list(card_data: list[dict], skip_existing: bool = True) -> list[tuple[str, str]]:
+def download_images_from_card_data_list(card_data: list[dict], 
+                                        skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download card images from Scryfall for a list of cards.
     
@@ -200,7 +204,8 @@ def download_images_from_card_data_list(card_data: list[dict], skip_existing: bo
         image_data.extend(image_urls)
     return download_multiple_card_images(image_data, skip_existing=skip_existing)
 
-def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, skip_existing: bool = True) -> list[tuple[str, str]]:
+def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, 
+                                        skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download card images from Scryfall for all cards in a JSON file.
     
@@ -219,7 +224,7 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, 
 
 def download_multiple_card_images(images_data: list[tuple[str, str]], 
                                   batch_size: int = IMAGES_BATCH_SIZE, 
-                                  image_dir: str = IMAGE_DIR, 
+                                  image_dir: str = IMAGE_DIR_FULL, 
                                   skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
@@ -237,7 +242,7 @@ def download_multiple_card_images(images_data: list[tuple[str, str]],
 
 async def _download_multiple_card_images(images_data: list[tuple[str, str]], 
                                          batch_size: int = IMAGES_BATCH_SIZE, 
-                                         image_dir: str = IMAGE_DIR, 
+                                         image_dir: str = IMAGE_DIR_FULL, 
                                          skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
@@ -272,7 +277,10 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
             failed_downloads.extend(fails)
     return failed_downloads
 
-async def _download_card_image(name: str, image_url: str, session: aiohttp.ClientSession, image_dir: str = IMAGE_DIR) -> tuple[str, str]:
+async def _download_card_image(name: str, 
+                               image_url: str, 
+                               session: aiohttp.ClientSession, 
+                               image_dir: str = IMAGE_DIR_FULL) -> tuple[str, str]:
     """
     Download a card image from Scryfall and save it locally. 
     Must be called within an aiohttp client session.
@@ -311,7 +319,8 @@ def make_filename_valid(name: str) -> str:
     """
     return name.replace("/", "_").replace('"', "'").replace("?", "").replace(":", "").strip()
 
-def get_card_image_urls(card_data: dict, image_type: str = IMAGE_TYPE) -> list[tuple[str, str]]:
+def get_card_image_urls(card_data: dict, 
+                        image_type: str = IMAGE_TYPE_FULL) -> list[tuple[str, str]]:
     """
     Get the image URLs and names of the card faces for a card from its data dictionary.
     
