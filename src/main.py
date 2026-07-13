@@ -9,9 +9,9 @@ import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
-from card_handling.load_scryfall_data import download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
+from card_handling.load_scryfall_data import IMAGE_TYPE_FULL, IMAGE_TYPE_ART, IMAGE_DIR_FULL, IMAGE_DIR_ART, download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
-from card_handling.process_image import process_all_images
+from card_handling.process_image import PRINTER_IMAGE_DIR_FULL, PRINTER_IMAGE_DIR_ART, process_all_images
 from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_data, get_standardized_card_dict, get_nonexistent_creature_mana_costs, get_mana_cost_range
 
 
@@ -47,7 +47,8 @@ def init() -> bool:
         print(f"Failed to create or open database: {e}.\nExiting.")
         return False
     
-    file_image_data = []
+    file_image_full_data = []
+    file_image_art_data = []
     for card_data in load_scryfall_card_data_chunks():
         try:
             db.save_card_data(card_data, commit=False, handle_exist="ignore")
@@ -59,8 +60,10 @@ def init() -> bool:
                 print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}.\nExiting.")
                 clear_local_data() # remove card data to avoid inconsistent state on next run
                 return False
-        image_urls = get_card_image_urls(card_data)
-        file_image_data.extend(image_urls)
+        image_name_urls_full = get_card_image_urls(card_data, IMAGE_TYPE_FULL)
+        image_name_urls_art = get_card_image_urls(card_data, IMAGE_TYPE_ART)
+        file_image_full_data.extend(image_name_urls_full)
+        file_image_art_data.extend(image_name_urls_art)
     
     try:
         db.commit()
@@ -77,31 +80,74 @@ def init() -> bool:
     # Step 3: Download card images based on the downloaded card data
     print("=> Downloading card images...")
     display.display_loading_screen("[3/4] Downloading card images...", size=3)
-    failed_downloads = download_multiple_card_images(file_image_data, skip_existing=True)
-    print(f"Finished downloading images. {len(failed_downloads)} failed downloads.")
-    for i in range(IMAGE_DOWNLOAD_RETRIES):
-        if failed_downloads:
-            print(f"Retrying failed downloads (attempt {i + 1}/{IMAGE_DOWNLOAD_RETRIES})...")
-            failed_downloads = download_multiple_card_images(failed_downloads, skip_existing=True)
-            print(f"Retry finished. {len(failed_downloads)} failed downloads remain.")
-        else:
-            print("All images downloaded successfully.")
-            break
-    if failed_downloads:
-        print(f"Failed to download images for {len(failed_downloads)} cards. Exiting.")
-        clear_local_data() # remove card data to avoid inconsistent state on next run
+    # 3.1: Download full-size images
+    if not _download_images_with_retries(file_image_full_data, IMAGE_DIR_FULL, "full-size"):
+        return False
+    # 3.2: Download art images
+    if not _download_images_with_retries(file_image_art_data, IMAGE_DIR_ART, "art"):
         return False
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     print("=> Processing card images...")
     display.display_loading_screen("[4/4] Processing card images...", size=4)
+    # 4.1: Process full-size images
+    if not _process_images_with_retries(IMAGE_DIR_FULL, PRINTER_IMAGE_DIR_FULL, "full-size"):
+        return False
+    # 4.2: Process art images
+    if not _process_images_with_retries(IMAGE_DIR_ART, PRINTER_IMAGE_DIR_ART, "art"):
+        return False
+    return True
+
+def _download_images_with_retries(image_data_list: list[tuple[str, str]], 
+                                  image_dir: str, 
+                                  images_name: str) -> bool:
+    """
+    Download card images from Scryfall with retries for failed downloads.
+    
+    Args:
+        image_data_list: List of tuples containing card names and image URLs to download.
+        image_dir: Directory to save the downloaded images.
+        images_name: Name of the image type being downloaded (e.g., "full-size", "art").
+
+    Returns:
+        bool: True if all images were downloaded successfully, False otherwise.
+    """
+    failed_downloads = download_multiple_card_images(image_data_list, image_dir=image_dir, skip_existing=True)
+    print(f"Finished downloading {images_name} images. {len(failed_downloads)} failed downloads.")
+    for i in range(IMAGE_DOWNLOAD_RETRIES):
+        if failed_downloads:
+            print(f"Retrying failed downloads (attempt {i + 1}/{IMAGE_DOWNLOAD_RETRIES})...")
+            failed_downloads = download_multiple_card_images(failed_downloads, image_dir=image_dir, skip_existing=True)
+            print(f"Retry finished. {len(failed_downloads)} failed downloads remain.")
+        else:
+            print(f"All {images_name} images downloaded successfully.")
+            break
+    if failed_downloads:
+        print(f"Failed to download {images_name} images for {len(failed_downloads)} cards. Exiting.")
+        clear_local_data() # remove card data to avoid inconsistent state on next run
+        return False # failure
+    return True # success
+
+def _process_images_with_retries(image_dir: str, output_dir: str, images_name: str) -> bool:
+    """
+    Process card images to create high-contrast black & white versions optimized for printing, with retries for failed processing.
+    
+    Args:
+        image_dir: Directory containing the source images.
+        output_dir: Directory to save the processed images.
+        images_name: Name of the image type being processed (e.g., "full-size", "art").
+
+    Returns:
+        bool: True if all images were processed successfully, False otherwise.
+    """
     try:
-        process_all_images(skip_existing=True)
+        process_all_images(image_dir, output_dir, skip_existing=True)
     except Exception as e:
-        print(f"Failed to process images: {e}\nExiting.")
+        print(f"Failed to process {images_name} images: {e}\nExiting.")
         clear_local_data() # remove card data to avoid inconsistent state on next run
         return False
     return True
+
 
 def main() -> Literal["shutdown", "restart", "exit"]:
     """Main loop of the program, handling button events and updating the display and printer accordingly.
