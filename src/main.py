@@ -111,7 +111,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
         Literal["shutdown", "restart", "exit"]: The exit mode indicating the requested action.
     """
     print("=> Entering main loop. Waiting for button events...")
-    display.display_text("Ready for input!")
+    display.display_text("~ Momir Vig ~\nReady for input!")
     rotary_min_value, rotary_max_value = get_mana_cost_range(db)
     skip_values = get_nonexistent_creature_mana_costs(db)
     rotary_value = 0
@@ -123,30 +123,33 @@ def main() -> Literal["shutdown", "restart", "exit"]:
             # double click to display/print general info, long press to exit program and trigger shutdown
             button_state = button_handler.get_state()
             if button_state == ButtonState.SINGLE_CLICK:
+                # SHOW CARD CONTEXT INFO
                 if current_card:
+                    gpio.toggle_led_blink(True) # make LED blink while busy
                     card_info = get_card_data(current_card, db)
                     card_info = get_standardized_card_dict(card_info, current_face)
-                    display.display_scrolling_text(card_info["oracle_text"], cycles=1)
+                    display.display_card_info(card_info)
+                    gpio.toggle_led_blink(False)
+                    gpio.toggle_button_led(True) # turn button LED back on after loading screen
+                else:
+                    display.display_text("No card printed yet.\nPress the button to print a card.")
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
-                gpio.toggle_led_blink(True)
-                display.display_loading_screen("Printing Momir Avatar!")
-                momir_name, momir_img = get_momir_avatar_card()
-                current_card = momir_name
-                printer.print_card_image(momir_img)
-                display.stop_loading_screen()
-                gpio.toggle_led_blink(False)
-                gpio.toggle_button_led(True) # turn button LED back on after loading screen
+                # SWITCH TO PRINT TEXT MODE
+                
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
+                # SHUTDOWN
                 display.display_text("Shutting down...")
                 print("=> Shutdown requested. Exiting...")
+                time.sleep(1)
                 return "shutdown" # exit program and trigger shutdown
             
             # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
             # the value wraps around if it would exceed the specified min and max values and specified values are skipped
             rotary_state = rotary_encoder_handler.get_rotary_state()
             if rotary_state == RotaryState.RIGHT:
+                # INCREASE VALUE
                 rotary_value += 1
                 if rotary_value in skip_values:
                     rotary_value += 1
@@ -155,6 +158,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 display.display_text(f"Mana Cost: {rotary_value}")
                 rotary_encoder_handler.reset_rotary()
             elif rotary_state == RotaryState.LEFT:
+                # DECREASE VALUE
                 rotary_value -= 1
                 if rotary_value in skip_values:
                     rotary_value -= 1
@@ -167,6 +171,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
             # double click currently not used, long press to reset program
             rotary_button_state = rotary_encoder_handler.get_state()
             if rotary_button_state == ButtonState.SINGLE_CLICK:
+                # PRINT RANDOM CARD
                 gpio.toggle_led_blink(True)
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
@@ -174,13 +179,25 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 printer.print_card_image(card_img)
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
-                gpio.toggle_button_led(True) # turn button LED back on after loading screen
+                gpio.toggle_button_led(True)
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
-                # do nothing for now
+                # PRINT MOMIR AVATAR CARD
+                gpio.toggle_led_blink(True)
+                display.display_loading_screen("Printing Momir Avatar!")
+                current_card, momir_img = get_momir_avatar_card()
+                current_face = None
+                printer.print_card_image(momir_img)
+                display.stop_loading_screen()
+                gpio.toggle_led_blink(False)
+                gpio.toggle_button_led(True)
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.LONG_PRESS:
-                rotary_encoder_handler.reset()
+                # RESTART PROGRAM
+                display.display_text("Restarting program...")
+                print("=> Restart requested. Exiting...")
+                time.sleep(1)
+                return "restart"
     except KeyboardInterrupt:
         print("\n=> Keyboard interrupt received. Exiting...")
     except Exception as e:
