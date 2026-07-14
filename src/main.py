@@ -9,9 +9,9 @@ import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
-from card_handling.load_scryfall_data import IMAGE_DIR, IMAGE_TYPE_FULL, IMAGE_TYPE_ART, _SUPPORTED_IMAGE_TYPES, download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
+from card_handling.load_scryfall_data import IMAGE_DIR, _SUPPORTED_IMAGE_TYPES, download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
-from card_handling.process_image import PRINTER_IMAGE_DIR, process_all_images
+from card_handling.process_image import PRINTER_IMAGE_DIR, _PRINTER_IMAGE_DIR_FULL, _PRINTER_IMAGE_DIR_ART, process_all_images
 from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_data, get_standardized_card_dict, get_nonexistent_creature_mana_costs, get_mana_cost_range
 
 
@@ -226,7 +226,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 gpio.toggle_led_blink(True)
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
-                img_dir = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL if full_print_mode else PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_ART
+                img_dir = _PRINTER_IMAGE_DIR_FULL if full_print_mode else _PRINTER_IMAGE_DIR_ART
                 current_card, current_face, card_img = get_random_creature_card(rotary_value, db, img_dir)
                 if full_print_mode:
                     printer.print_card_image(card_img)
@@ -242,7 +242,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 # PRINT MOMIR AVATAR CARD
                 gpio.toggle_led_blink(True)
                 display.display_loading_screen("Printing Momir Avatar!")
-                img_dir = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL if full_print_mode else PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_ART
+                img_dir = _PRINTER_IMAGE_DIR_FULL if full_print_mode else _PRINTER_IMAGE_DIR_ART
                 current_card, momir_img = get_momir_avatar_card(img_dir)
                 current_face = None
                 if full_print_mode:

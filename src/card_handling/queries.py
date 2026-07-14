@@ -3,8 +3,8 @@ from copy import deepcopy
 from PIL import Image
 
 from card_handling.manage_db import DatabaseManager
-from card_handling.process_image import PRINTER_IMAGE_DIR
-from card_handling.load_scryfall_data import IMAGE_TYPE_FULL, MOMIR_AVATAR_NAME, make_filename_valid
+from card_handling.process_image import _PRINTER_IMAGE_DIR_FULL
+from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME, make_filename_valid
 
 
 MODAL_DOUBLE_SIDED_CARDS = ["modal_dfc"] # Cards that can be played on either side
@@ -12,7 +12,9 @@ MULTIPLE_FACES_ON_SINGLE_SIDE_CARDS = ["flip", "adventure", "prepare"] # Cards t
 DOUBLE_SIDED_ONLY_FRONT_VALID_CARDS = ["transform"] # Cards that can only be played on the front face
 
 
-def get_random_creature_card(mana_cost: int, db: DatabaseManager, image_dir: str = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL) -> tuple[str, str, Image.Image]:
+def get_random_creature_card(mana_cost: int, 
+                             db: DatabaseManager, 
+                             image_dir: str = _PRINTER_IMAGE_DIR_FULL) -> tuple[str, str, Image.Image]:
     """Get a random creature card printer image with the specified mana cost from the database. 
     Handles double-faced cards according to the rules for legal token targets in Momir Basic 
     (e.g., for mdfcs, either face can be selected if both are creatures; for transform cards, 
@@ -59,7 +61,7 @@ def get_random_creature_card(mana_cost: int, db: DatabaseManager, image_dir: str
     img_name = make_filename_valid(face_name if face_name is not None else card_name)
     return (card_name, face_name, Image.open(f"{image_dir}/{img_name}"))
 
-def get_momir_avatar_card(image_dir: str = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL) -> tuple[str, Image.Image]:
+def get_momir_avatar_card(image_dir: str = _PRINTER_IMAGE_DIR_FULL) -> tuple[str, Image.Image]:
     """Get the Momir avatar card printer image from the database.
 
     Args:

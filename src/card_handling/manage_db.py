@@ -59,7 +59,9 @@ class DatabaseManager:
         self.conn.commit()
         self.cursor = None
     
-    def execute_query(self, query: str, params: tuple = (), commit: bool = False) -> list[tuple]:
+    def execute_query(self, query: str, 
+                      params: tuple = (), 
+                      commit: bool = False) -> list[tuple]:
         """Execute a SQL query with optional parameters and commit.
         
         Args:
@@ -80,7 +82,9 @@ class DatabaseManager:
     def close(self) -> None:
         self.conn.close()
         
-    def save_card_data(self, card: dict, commit: bool = True, handle_exist: Literal["ignore", "replace", "fail"] = "ignore") -> None:
+    def save_card_data(self, card: dict, 
+                       commit: bool = True, 
+                       handle_exist: Literal["ignore", "replace", "fail"] = "ignore") -> None:
         """Save a single card into the database.
         
         Args:

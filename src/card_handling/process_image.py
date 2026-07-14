@@ -3,7 +3,7 @@ from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageOps
 import aiofile
-from card_handling.load_scryfall_data import IMAGE_DIR, IMAGE_TYPE_FULL
+from card_handling.load_scryfall_data import IMAGE_TYPE_ART, IMAGE_TYPE_FULL, _IMAGE_DIR_FULL
 
 
 PRINTER_IMAGE_DIR = "./data/card_images/printer"
@@ -13,10 +13,13 @@ BLACK_WHITE_THRESHOLD = 128
 
 DEVICE_WIDTH = 384 # width of the printer in pixels
 
+_PRINTER_IMAGE_DIR_FULL = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL
+_PRINTER_IMAGE_DIR_ART = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_ART
 
-def process_all_images(image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                       output_dir: str = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                       skip_existing: bool = True):
+
+def process_all_images(image_dir: str = _IMAGE_DIR_FULL, 
+                       output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
+                       skip_existing: bool = True) -> None:
     """
     Process all images in the specified directory and save the results separately.
 
@@ -27,9 +30,9 @@ def process_all_images(image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL,
     """
     asyncio.run(_process_all_images(image_dir, output_dir, skip_existing))
 
-async def _process_all_images(image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                              output_dir: str = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                              skip_existing: bool = True):
+async def _process_all_images(image_dir: str, 
+                              output_dir: str, 
+                              skip_existing: bool) -> None:
     """
     Process all images in the specified directory and save the results separately.
 
@@ -48,8 +51,8 @@ async def _process_all_images(image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL,
     await asyncio.gather(*tasks)
 
 async def process_image(file: str, 
-                        image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                        output_dir: str = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
+                        image_dir: str = _IMAGE_DIR_FULL, 
+                        output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
                         skip_existing: bool = True, 
                         return_image: bool = False,
                         sem: asyncio.Semaphore = None) -> Image.Image | None:

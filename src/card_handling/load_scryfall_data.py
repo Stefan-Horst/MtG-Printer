@@ -21,7 +21,6 @@ DATA_FILE = "cards.json"
 BULK_TYPE = "oracle_cards"
 IMAGE_TYPE_FULL = "border_crop"
 IMAGE_TYPE_ART = "art_crop"
-_SUPPORTED_IMAGE_TYPES = [IMAGE_TYPE_FULL, IMAGE_TYPE_ART] # image types supported for downloading and processing
 SCRYFALL_API_URL = "https://api.scryfall.com"
 BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
@@ -31,9 +30,14 @@ CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
 MAX_CONCURRENT_DOWNLOADS = 100 # limit for concurrent image downloads
 IMAGES_BATCH_SIZE = 500 # number of images to download at once in the async function
 
+_SUPPORTED_IMAGE_TYPES = [IMAGE_TYPE_FULL, IMAGE_TYPE_ART] # image types supported for downloading and processing
+_IMAGE_DIR_FULL = IMAGE_DIR+"/"+IMAGE_TYPE_FULL
+_IMAGE_DIR_ART = IMAGE_DIR+"/"+IMAGE_TYPE_ART
+_DATA_FILE_PATH = DATA_DIR+"/"+DATA_FILE
+
 ### JSON CARD DATA FILE LOADING
 
-def load_scryfall_card_data_chunks(filepath: str = DATA_DIR+"/"+DATA_FILE, 
+def load_scryfall_card_data_chunks(filepath: str = _DATA_FILE_PATH, 
                                    exclude_invalid: bool = True) -> Generator[dict, None, None]:
     """
     Load card data from a JSON file in chunks of single card dicts to limit memory usage.
@@ -204,7 +208,7 @@ def download_images_from_card_data_list(card_data: list[dict],
         image_data.extend(image_urls)
     return download_multiple_card_images(image_data, skip_existing=skip_existing)
 
-def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE, 
+def download_images_from_card_data_file(filepath: str = _DATA_FILE_PATH, 
                                         skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download card images from Scryfall for all cards in a JSON file.
@@ -224,7 +228,7 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE,
 
 def download_multiple_card_images(images_data: list[tuple[str, str]], 
                                   batch_size: int = IMAGES_BATCH_SIZE, 
-                                  image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
+                                  image_dir: str = _IMAGE_DIR_FULL, 
                                   skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
@@ -241,9 +245,9 @@ def download_multiple_card_images(images_data: list[tuple[str, str]],
     return asyncio.run(_download_multiple_card_images(images_data, batch_size, image_dir, skip_existing))
 
 async def _download_multiple_card_images(images_data: list[tuple[str, str]], 
-                                         batch_size: int = IMAGES_BATCH_SIZE, 
-                                         image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
-                                         skip_existing: bool = True) -> list[tuple[str, str]]:
+                                         batch_size: int, 
+                                         image_dir: str, 
+                                         skip_existing: bool) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
     Uses async pattern to speed up the process.
@@ -280,7 +284,7 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
 async def _download_card_image(name: str, 
                                image_url: str, 
                                session: aiohttp.ClientSession, 
-                               image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL) -> tuple[str, str]:
+                               image_dir: str) -> tuple[str | None, str | None]:
     """
     Download a card image from Scryfall and save it locally. 
     Must be called within an aiohttp client session.
