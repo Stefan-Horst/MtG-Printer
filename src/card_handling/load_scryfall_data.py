@@ -13,8 +13,7 @@ from PIL import Image
 MOMIR_AVATAR_NAME = "Momir Vig, Simic Visionary Avatar"
 ALLOWED_CARDS = [MOMIR_AVATAR_NAME] # whitelisted cards to download even if they would not pass the validity filter
 
-IMAGE_DIR_FULL = "./data/card_images/raw_full"
-IMAGE_DIR_ART = "./data/card_images/raw_art"
+IMAGE_DIR = "./data/card_images/raw"
 DATA_DIR = "./data/card_data"
 METADATA_FILE = "metadata.json"
 DATA_FILE = "cards.json"
@@ -22,6 +21,7 @@ DATA_FILE = "cards.json"
 BULK_TYPE = "oracle_cards"
 IMAGE_TYPE_FULL = "border_crop"
 IMAGE_TYPE_ART = "art_crop"
+_SUPPORTED_IMAGE_TYPES = [IMAGE_TYPE_FULL, IMAGE_TYPE_ART] # image types supported for downloading and processing
 SCRYFALL_API_URL = "https://api.scryfall.com"
 BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
@@ -224,7 +224,7 @@ def download_images_from_card_data_file(filepath: str = DATA_DIR+"/"+DATA_FILE,
 
 def download_multiple_card_images(images_data: list[tuple[str, str]], 
                                   batch_size: int = IMAGES_BATCH_SIZE, 
-                                  image_dir: str = IMAGE_DIR_FULL, 
+                                  image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
                                   skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
@@ -242,7 +242,7 @@ def download_multiple_card_images(images_data: list[tuple[str, str]],
 
 async def _download_multiple_card_images(images_data: list[tuple[str, str]], 
                                          batch_size: int = IMAGES_BATCH_SIZE, 
-                                         image_dir: str = IMAGE_DIR_FULL, 
+                                         image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL, 
                                          skip_existing: bool = True) -> list[tuple[str, str]]:
     """
     Download images for multiple cards from Scryfall and save them locally. 
@@ -280,7 +280,7 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
 async def _download_card_image(name: str, 
                                image_url: str, 
                                session: aiohttp.ClientSession, 
-                               image_dir: str = IMAGE_DIR_FULL) -> tuple[str, str]:
+                               image_dir: str = IMAGE_DIR+"/"+IMAGE_TYPE_FULL) -> tuple[str, str]:
     """
     Download a card image from Scryfall and save it locally. 
     Must be called within an aiohttp client session.
