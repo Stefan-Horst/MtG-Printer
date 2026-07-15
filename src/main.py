@@ -9,11 +9,13 @@ import raspi_io.gpio as gpio
 from raspi_io.display import DisplayManager
 from raspi_io.printer import PrinterManager
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
-from card_handling.load_scryfall_data import IMAGE_DIR, _SUPPORTED_IMAGE_TYPES, download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
+from card_handling.load_scryfall_data import IMAGE_DIR, IMAGE_TYPE_FULL, IMAGE_TYPE_ART, _SUPPORTED_IMAGE_TYPES, download_scryfall_data, load_scryfall_card_data_chunks, get_card_image_urls, download_multiple_card_images, clear_local_data
 from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import PRINTER_IMAGE_DIR, _PRINTER_IMAGE_DIR_FULL, _PRINTER_IMAGE_DIR_ART, process_all_images
 from card_handling.queries import get_random_creature_card, get_momir_avatar_card, get_card_data, get_standardized_card_dict, get_nonexistent_creature_mana_costs, get_mana_cost_range
 
+
+DEFAULT_PRINT_FULL = True # print full card images by default; False for printing text with art crop; ignored if only one image type is available
 
 IMAGE_DOWNLOAD_RETRIES = 3
 CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
@@ -149,9 +151,12 @@ def _process_images_with_retries(image_dir: str, output_dir: str, images_name: s
     return True
 
 
-def main() -> Literal["shutdown", "restart", "exit"]:
+def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit"]:
     """Main loop of the program, handling button events and updating the display and printer accordingly.
     This function runs indefinitely until a shutdown or restart is triggered by a button event or an error occurs.
+    
+    Args:
+        enabled_image_types: List of enabled image types determining which print modes are available.
     
     Returns:
         Literal["shutdown", "restart", "exit"]: The exit mode indicating the requested action.
@@ -163,7 +168,7 @@ def main() -> Literal["shutdown", "restart", "exit"]:
     rotary_value = 0
     current_card = None
     current_face = None
-    full_print_mode = True # if True, print full card image; if False, print text with art crop
+    full_print_mode = DEFAULT_PRINT_FULL if IMAGE_TYPE_FULL in enabled_image_types else False
     try:
         while True:
             # handle main button events: single click to display context info, 
@@ -183,6 +188,9 @@ def main() -> Literal["shutdown", "restart", "exit"]:
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
                 # SWITCH TO PRINT TEXT MODE
+                if IMAGE_TYPE_FULL not in enabled_image_types or IMAGE_TYPE_ART not in enabled_image_types:
+                    display.display_text("Only one image type is enabled.\nCannot switch print modes.")
+                    continue
                 full_print_mode = not full_print_mode
                 if full_print_mode:
                     display.display_text("Switched to full card print mode.")
@@ -308,7 +316,15 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("-s", "--skipinit", default=False, action="store_true", help="Skip initialization steps")
+    parser.add_argument("-t", "--imgtypes", nargs="+", default=_SUPPORTED_IMAGE_TYPES, choices=_SUPPORTED_IMAGE_TYPES, type=str, 
+                        help=f"Specify which image types to download and process. Supported types: {_SUPPORTED_IMAGE_TYPES}")
     args = parser.parse_args()
+    
+    enabled_image_types = args.imgtypes
+    if enabled_image_types == [IMAGE_TYPE_FULL]:
+        print("=> Using only full card images for printing.")
+    elif enabled_image_types == [IMAGE_TYPE_ART]:
+        print("=> Using only art crop images for printing.")
     
     ### INIT AND CHECK HARDWARE COMPONENTS
 
@@ -338,7 +354,7 @@ if __name__ == "__main__":
     if args.skipinit or button_handler.is_pressed():
         print("=> Skipping initialization steps...")
     elif has_internet_connection():
-        init_success = init()
+        init_success = init(enabled_image_types)
     else:
         print("=> No internet connection detected. Skipping initialization steps...")
     gpio.toggle_led_blink(False) # stop LED blinking after initialization is done
@@ -361,7 +377,7 @@ if __name__ == "__main__":
     if init_success: # Only enter main loop if initialization was successful
         gpio.toggle_button_led(True) # turn on LED to indicate that the program is ready for input
         db = DatabaseManager()
-        exit_mode = main()    
+        exit_mode = main(enabled_image_types)    
     
     ### CLEANUP
 
