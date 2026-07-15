@@ -7,6 +7,7 @@ Software for playing the custom **Momir (Basic)** game mode of *Magic the Gather
 - Select a random creature card of a given mana value and print it
 - Print the Momir Vig Avatar card
 - Show relevant current card info on the display
+- 2 printing modes: complete card images or text with art image for better readability
 - Updates all relevant data when having internet connection
 - Allows for complete offline use after initial connection
 - Runs on low-end devices (Raspberry Pi 1 Model B)
@@ -20,9 +21,10 @@ If everything is set up, here is what you can do with the program:
 - Press rotary button to print a random creature card with the selected mana value
 - Press LED button to show last printed card info on display
 - Double-press rotary button to print Momir Vig Avatar
-- Double-press LED button to show general game info on display
+- Double-press LED button to switch to a text-based mode (for better readability)
+  - Double-press again to switch back to the full-image mode
 - Long-press (3s) LED button to shut down system
-- Long-press rotary button to restart the program
+- Long-press (3s) rotary button to restart the program
 
 ## Setup
 
@@ -90,7 +92,7 @@ If your device has very limited storage (<8GB, maybe 4 GB suffice), you might ha
 
 ### Software Installation
 
-You must install python and probably some other stuff + configuration to get the hardware to work.
+You must install python and probably some libraries + configuration to get the hardware to work.
 
 <details>
 <summary>Setup GPIO</summary>
@@ -127,15 +129,20 @@ You must install python and probably some other stuff + configuration to get the
 
 </details>
 
-After everything is ready, clone/copy this code and run `pip install .`. You can then run this program via `python main.py`. If you want to skip card data updating, add the `-s` flag.
-If everything works, you can set up a system service to run the program automatically after every system boot.
-
 <details>
 <summary>Create autostart service</summary>
 
 TODO
 
 </details>
+
+## Start the program
+
+After everything is set up, clone/copy this code and run `pip install .`. You can then run this program via `python main.py`. If everything works, you can set up a system service to run the program automatically after every system boot (see above).
+
+If you want to skip card data updating, add the `-s` flag. Note that the program must be started without this flag at least once to initially download the required card data and images.
+
+You can also specify which card images you want to download if you are only interested in one of the two available print modes. Use the `-t` flag with the argument `border_crop` if you only want the full image mode or use the argument `art_crop` if you only want the more readable text-based mode.
 
 ## Program Flow & Options
 
@@ -144,11 +151,10 @@ TODO
 2. Next, the program attempts to update its data if connected to the internet. This can be skipped by holding LED button pressed on startup
    1. If a newer bulk data version is available, the bulk data for all cards is downloaded
    2. Next, this data is loaded into the DB
-   3. Then, the images for all cards are downloaded
-   4. Finally, the images are processed for printing and the new versions are saved
-   - -> The LED is now permanently on to signal the program is ready
-3. The program enters the main loop where the user can interact with it. See instructions
-4. If shutdown is requested, the program is gracefully stopped and the system shuts down. If restart is requested, the device reboots instead, starting from step 1
+   3. Then, the images for all cards are downloaded (for each print mode)
+   4. Finally, the images are processed for printing and the new versions are saved (for each print mode)
+3. The program enters the main loop where the user can interact with it (the LED is now permanently on to signal the program is ready). See instructions
+4. If shutdown is requested, the program is gracefully stopped and the system shuts down. If restart is requested, the program restarts instead, starting from step 1
 
 If an error is encountered at any step and the program cannot resolve it, it restarts itself, but not the system. Step 2 is skipped during such program restarts. If the program is stuck in a faulty state and restarts in a loop, the LED button can be held pressed during the restart announcement on the display to cancel it and shut the system down instead.
 
@@ -157,3 +163,4 @@ If an error is encountered at any step and the program cannot resolve it, it res
 Magic is a permanently evolving game, introducing new mechanics and card types which may require adapting this software. Below is a list of aspects that could potentially require adjustments: 
 - queries.py: new card layouts with multiple faces (beyond transform, modal_dfc, prepare, etc.) have to be added to the constants and new categories might need to be handled in get_random_creature_card() and get_standardized_card_dict()
 - load_scryfall_data.py: the ALLOWED_CARDS list and the legal card filter in _is_card_valid() if more or less cards should be indexed
+  - all other constants based on the Scryfall API spec, but these are unlikely to change
