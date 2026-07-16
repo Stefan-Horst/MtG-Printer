@@ -32,7 +32,7 @@ class DisplayManager:
         """Display card info on the OLED display. Uses scrolling text with automatic line breaks.
         
         Args:
-            card_data: Dictionary containing card name, mana cost, type, oracle text, and power/toughness
+            card_data: Dict containing the card information. Must be standardized so all relevant keys exist.
         """
         name = card_data["name"]
         mana_cost = card_data["mana_cost"]
@@ -52,7 +52,7 @@ class DisplayManager:
             text_width = font.getlength(text)
             if text_width >= target_width:
                 return text
-            space_count = target_width - text_width
+            space_count = int(target_width - text_width)
             return " " * space_count + text
 
         mana_line = _right_align_text(str(mana_cost), separator_width)
@@ -62,7 +62,7 @@ class DisplayManager:
 
         power_toughness = None
         if power != "" or toughness != "":
-            power_toughness = f"{power}/{toughness}".strip()
+            power_toughness = f"{power} / {toughness}"
             text += "\n" + separator + "\n" + _right_align_text(power_toughness, separator_width)
 
         self.display_scrolling_text(text.replace("—", "-"), paragraph_gap=False)
