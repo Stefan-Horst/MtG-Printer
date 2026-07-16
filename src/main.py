@@ -143,7 +143,7 @@ def _process_images_with_retries(image_dir: str, output_dir: str, images_name: s
         bool: True if all images were processed successfully, False otherwise.
     """
     try:
-        process_all_images(image_dir, output_dir, skip_existing=True)
+        process_all_images(printer.device_width, image_dir, output_dir, skip_existing=True)
     except Exception as e:
         print(f"Failed to process {images_name} images: {e}\nExiting.")
         clear_local_data() # remove card data to avoid inconsistent state on next run

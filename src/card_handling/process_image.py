@@ -11,32 +11,34 @@ IMAGE_EXTENSION = ".png"
 MAX_CONCURRENT_TASKS = 100
 BLACK_WHITE_THRESHOLD = 128
 
-DEVICE_WIDTH = 384 # width of the printer in pixels
-
 _PRINTER_IMAGE_DIR_FULL = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL
 _PRINTER_IMAGE_DIR_ART = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_ART
 
 
-def process_all_images(image_dir: str = _IMAGE_DIR_FULL, 
+def process_all_images(device_width: int, 
+                       image_dir: str = _IMAGE_DIR_FULL, 
                        output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
                        skip_existing: bool = True) -> None:
     """
     Process all images in the specified directory and save the results separately.
 
     Args:
+        device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images
         skip_existing: whether to skip processing if the output file already exists
     """
-    asyncio.run(_process_all_images(image_dir, output_dir, skip_existing))
+    asyncio.run(_process_all_images(device_width, image_dir, output_dir, skip_existing))
 
-async def _process_all_images(image_dir: str, 
+async def _process_all_images(device_width: int, 
+                              image_dir: str, 
                               output_dir: str, 
                               skip_existing: bool) -> None:
     """
     Process all images in the specified directory and save the results separately.
 
     Args:
+        device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images
         skip_existing: whether to skip processing if the output file already exists
@@ -45,12 +47,13 @@ async def _process_all_images(image_dir: str,
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
-    tasks = [process_image(image_file.name, image_dir, output_dir, skip_existing, sem=sem) 
+    tasks = [process_image(image_file.name, device_width, image_dir, output_dir, skip_existing, sem=sem) 
              for image_file in input_path.iterdir()
              if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
     await asyncio.gather(*tasks)
 
 async def process_image(file: str, 
+                        device_width: int,
                         image_dir: str = _IMAGE_DIR_FULL, 
                         output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
                         skip_existing: bool = True, 
@@ -62,6 +65,7 @@ async def process_image(file: str,
 
     Args:
         file: name of the image file to process, including extension
+        device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images; if None, the image will not be saved
         skip_existing: whether to skip processing if the output file already exists
@@ -79,8 +83,8 @@ async def process_image(file: str,
             img = Image.open(input_file)
             # resize to fit the printer
             ratio = img.size[0] / img.size[1]
-            new_height = int(DEVICE_WIDTH / ratio)
-            img = img.resize((DEVICE_WIDTH, new_height))
+            new_height = int(device_width / ratio)
+            img = img.resize((device_width, new_height))
             # convert to grayscale
             gray = img.convert("L")
             # increase contrast
