@@ -13,9 +13,9 @@ class PrinterManager:
         self.printer = Serial(devfile="/dev/serial0", baudrate=9600, profile="POS-5890")
         self.dummy_printer = Dummy(profile="POS-5890")
         # Width of the printer in pixels and the possible number of characters per line for normal and narrow font
-        self.device_width = self.printer.profile["media"]["width"]["pixels"]
-        self.base_cols_per_line = self.printer.profile["fonts"]["0"]["columns"]
-        self.narrow_cols_per_line = self.printer.profile["fonts"]["1"]["columns"]
+        self.device_width = self.printer.profile.profile_data["media"]["width"]["pixels"]
+        self.base_cols_per_line = self.printer.profile.profile_data["fonts"]["0"]["columns"]
+        self.narrow_cols_per_line = self.printer.profile.profile_data["fonts"]["1"]["columns"]
 
     def is_printer_online(self) -> bool:
         """Check if the printer is online and ready to receive commands."""
