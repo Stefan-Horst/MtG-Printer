@@ -36,10 +36,10 @@ class DisplayManager:
         """
         name = card_data["name"]
         mana_cost = card_data["mana_cost"]
-        card_type = card_data["type_line"]
+        type_line = card_data["type_line"]
         oracle_text = card_data["oracle_text"]
-        power = card_data.get("power")
-        toughness = card_data.get("toughness")
+        power = card_data["power"]
+        toughness = card_data["toughness"]
 
         font = ImageFont.load_default()
         hyphen_width = font.getlength("-")
@@ -57,16 +57,12 @@ class DisplayManager:
 
         mana_line = _right_align_text(str(mana_cost), separator_width)
         text = (name + "\n" + mana_line + "\n" + separator + "\n" 
-                + card_type + "\n" + separator + "\n" 
+                + type_line + "\n" + separator + "\n" 
                 + oracle_text.replace("\n", "\n\n")) # add empty line after each paragraph
 
         power_toughness = None
-        if power is not None or toughness is not None:
-            power_part = str(power) if power is not None else ""
-            toughness_part = str(toughness) if toughness is not None else ""
-            power_toughness = f"{power_part}/{toughness_part}".strip()
-
-        if power_toughness:
+        if power != "" or toughness != "":
+            power_toughness = f"{power}/{toughness}".strip()
             text += "\n" + separator + "\n" + _right_align_text(power_toughness, separator_width)
 
         self.display_scrolling_text(text.replace("—", "-"), paragraph_gap=False)

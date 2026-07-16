@@ -152,9 +152,9 @@ def get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> di
             raise ValueError(f"Relevant face {relevant_face} not found in card faces")
         # Make sure that power and toughness keys exist
         if "power" not in card:
-            card["power"] = None
+            card["power"] = ""
         if "toughness" not in card:
-            card["toughness"] = None
+            card["toughness"] = ""
     # Handle cards with multiple faces on one side
     elif "card_faces" in card:
         card["name"] = _combine("name")
@@ -164,5 +164,9 @@ def get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> di
             card["power"] = _combine("power")
         if "toughness" in card["card_faces"][0]:
             card["toughness"] = _combine("toughness")
-
+    # Remove None values and convert all values to strings
+    for k, v in card.items():
+        if v is None:
+            v = ""
+        card[k] = str(v).strip()
     return card
