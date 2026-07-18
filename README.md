@@ -109,7 +109,7 @@ You must install python and probably some libraries + configuration to get the h
 <summary>Setup Printer</summary>
 
 - active uart in dietpi-config -> advanced -> serial/uart
-- install gcc etc (needed for pillow): apt install build-essential libjpeg-dev
+- install missing libraries for pillow to work (view updated package names [here](https://pillow.readthedocs.io/en/stable/installation/building-from-source.html#external-libraries)): apt install build-essential libjpeg8-dev libtiff5-dev libopenjp2-7-dev libxcb1-dev libfreetype6-dev
 - install in venv: pip install python-escpos\[serial]
 - check if exists: dmesg | grep tty
 	- should be ttyAMA0 but serial0 should always point there too (see ls -l /dev)
