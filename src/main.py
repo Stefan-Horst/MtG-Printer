@@ -171,6 +171,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
     current_card_info = None
     current_card_image = None
     full_print_mode = DEFAULT_PRINT_FULL if IMAGE_TYPE_FULL in enabled_image_types else False
+    new_card_since_mode_switch = False
     try:
         while True:
             # handle main button events: single click to display context info, 
@@ -197,16 +198,19 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     time.sleep(2)
                     display.display_text(f"Mana Cost: {rotary_value}") # return to default display
                     continue
-                gpio.toggle_led_blink(True) # make LED blink while busy
-                display.display_loading_screen("Printing current card in new mode...")
                 full_print_mode = not full_print_mode
                 current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
+                if not new_card_since_mode_switch: # don't print card again if switching modes back to the same mode as before
+                    continue
+                gpio.toggle_led_blink(True) # make LED blink while busy
+                display.display_loading_screen("Printing current card in new mode...")
                 if full_print_mode: # full card image mode
                     display.display_text("Switched to full card print mode.")
                     printer.print_card_image(current_card_image)
                 else: # text with art crop mode
                     display.display_text("Switched to text print mode.")
                     printer.print_card_as_image(current_card_info, current_card_image)
+                new_card_since_mode_switch = False
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True) # turn button LED back on after loading screen
@@ -257,6 +261,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     printer.print_card_image(current_card_image)
                 else: # print text with art crop
                     printer.print_card_as_image(current_card_info, current_card_image)
+                new_card_since_mode_switch = True
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
@@ -275,6 +280,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     printer.print_card_image(current_card_image)
                 else: # print text with art crop
                     printer.print_card_as_image(current_card_info, current_card_image)
+                new_card_since_mode_switch = True
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
