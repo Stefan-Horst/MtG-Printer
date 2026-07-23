@@ -3,7 +3,7 @@ from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageOps
 import aiofile
-from card_handling.load_scryfall_data import IMAGE_TYPE_ART, IMAGE_TYPE_FULL, _IMAGE_DIR_FULL
+from card_handling.load_scryfall_data import IMAGE_TYPE_ART, IMAGE_TYPE_FULL, _IMAGE_DIR_FULL, make_filename_valid
 
 
 PRINTER_IMAGE_DIR = "./data/card_images/printer"
@@ -117,3 +117,20 @@ async def process_image(file: str,
         if return_image:
             return bw
     return None
+
+def get_card_image_for_mode(card_name: str, mode: str) -> Image.Image:
+    """Get the card printer image for the specified mode (full or art) from the database.
+    
+    Args:
+        card_name: The name of the card to query.
+        mode: The mode for which to get the card image ("full" or "art").
+    Returns:
+        Image.Image: A PIL Image object representing the card printer image.
+    """
+    img_name = make_filename_valid(card_name)
+    if mode == "full":
+        return Image.open(f"{_PRINTER_IMAGE_DIR_FULL}/{img_name}")
+    elif mode == "art":
+        return Image.open(f"{_PRINTER_IMAGE_DIR_ART}/{img_name}")
+    else:
+        raise ValueError("Invalid mode. Must be 'full' or 'art'.")
