@@ -168,8 +168,8 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
     rotary_value = 0
     current_card = None
     current_face = None
-    card_info = None
-    card_image = None
+    current_card_info = None
+    current_card_image = None
     full_print_mode = DEFAULT_PRINT_FULL if IMAGE_TYPE_FULL in enabled_image_types else False
     try:
         while True:
@@ -180,9 +180,9 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 # SHOW CARD CONTEXT INFO
                 if current_card:
                     gpio.toggle_led_blink(True) # make LED blink while busy
-                    card_info = get_card_data(current_card, db)
-                    card_info = get_standardized_card_dict(card_info, current_face)
-                    display.display_card_info(card_info)
+                    current_card_info = get_card_data(current_card, db)
+                    current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                    display.display_card_info(current_card_info)
                     gpio.toggle_led_blink(False)
                     gpio.toggle_button_led(True) # turn button LED back on after loading screen
                 else:
@@ -200,13 +200,13 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 gpio.toggle_led_blink(True) # make LED blink while busy
                 display.display_loading_screen("Printing current card in new mode...")
                 full_print_mode = not full_print_mode
-                card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
+                current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if full_print_mode: # full card image mode
                     display.display_text("Switched to full card print mode.")
-                    printer.print_card_image(card_image)
+                    printer.print_card_image(current_card_image)
                 else: # text with art crop mode
                     display.display_text("Switched to text print mode.")
-                    printer.print_card(card_info, card_image)
+                    printer.print_card_as_image(current_card_info, current_card_image)
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True) # turn button LED back on after loading screen
@@ -250,13 +250,13 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
                 current_card, current_face = get_random_creature_card(rotary_value, db)
-                card_info = get_card_data(current_card, db)
-                card_info = get_standardized_card_dict(card_info, current_face)
-                card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
+                current_card_info = get_card_data(current_card, db)
+                current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if full_print_mode: # print full card image
-                    printer.print_card_image(card_image)
+                    printer.print_card_image(current_card_image)
                 else: # print text with art crop
-                    printer.print_card(card_info, card_image)
+                    printer.print_card_as_image(current_card_info, current_card_image)
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
@@ -268,13 +268,13 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.display_loading_screen("Printing Momir Avatar!")
                 current_card = MOMIR_AVATAR_NAME
                 current_face = None
-                card_info = get_card_data(current_card, db)
-                card_info = get_standardized_card_dict(card_info, current_face)
-                card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
+                current_card_info = get_card_data(current_card, db)
+                current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if full_print_mode: # print full card image
-                    printer.print_card_image(card_image)
+                    printer.print_card_image(current_card_image)
                 else: # print text with art crop
-                    printer.print_card(card_info, card_image)
+                    printer.print_card_as_image(current_card_info, current_card_image)
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
