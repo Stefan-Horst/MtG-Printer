@@ -187,11 +187,15 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     gpio.toggle_button_led(True) # turn button LED back on after loading screen
                 else:
                     display.display_text("No card printed yet.\nPress the button to print a card.")
+                    time.sleep(2)
+                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
                 # SWITCH TO PRINT TEXT MODE
                 if IMAGE_TYPE_FULL not in enabled_image_types or IMAGE_TYPE_ART not in enabled_image_types:
                     display.display_text("Only one image type is enabled.\nCannot switch print modes.")
+                    time.sleep(2)
+                    display.display_text(f"Mana Cost: {rotary_value}") # return to default display
                     continue
                 gpio.toggle_led_blink(True) # make LED blink while busy
                 display.display_loading_screen("Printing current card in new mode...")
@@ -256,6 +260,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
+                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
                 # PRINT MOMIR AVATAR CARD
@@ -273,6 +278,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
+                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.LONG_PRESS:
                 # RESTART PROGRAM
