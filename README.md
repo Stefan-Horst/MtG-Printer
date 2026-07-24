@@ -67,13 +67,17 @@ Prerequisites depend on the dongle you have. I have a cheap one and fortunately 
 - disable usb powersave/autosuspend: echo -1 > /sys/module/usbcore/parameters/autosuspend    (value is 2 by default)
 	- needs to repeated every startup so write service to set value: 
 		- create service file disable-wifi-powersave.service:
-		  \[Unit]
+		  ```
+		  [Unit]
 		  Description=disable-wifi-powersave
-		  \[Service]
+
+		  [Service]
 		  Type=oneshot
-		  ExecStart={command from above}
-		  \[Install]
-		  WantedBy=multi-user.target     (default value but required)
+		  ExecStart=echo -1 > /sys/module/usbcore/parameters/autosuspend
+
+		  [Install]
+		  WantedBy=multi-user.target
+		  ```
 		- copy file to services: cp {name}.service /etc/systemd/system/
 		- enable: systemctl enable {service-name.service}
 
@@ -132,7 +136,23 @@ You must install python and probably some libraries + configuration to get the h
 <details>
 <summary>Create autostart service</summary>
 
-TODO
+You can create a system service that will start the program automatically during startup. The one below is configured to start after networking is set up to allow fetching updates without problems. If the program crashes, the service restarts it.
+- create service file run-mtg-program-after-startup.service (and adjust the path if yours is different):
+  ```
+  [Unit]
+  Description=disable-wifi-powersave
+  After=network.target
+
+  [Service]
+  Type=simple
+  ExecStart=/home/dietpi/mtg/.venv/bin/python3 /home/dietpi/mtg/main.py
+  Restart=on-failure
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+- copy file to services: cp {name}.service /etc/systemd/system/
+- enable: systemctl enable {service-name.service}
 
 </details>
 
