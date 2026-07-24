@@ -88,9 +88,7 @@ async def process_image(file: str,
             # convert to grayscale
             gray = img.convert("L")
             # increase contrast
-            gray = ImageOps.autocontrast(gray)
-            # threshold to pure black/white
-            bw = gray.point(lambda x: 0 if x < BLACK_WHITE_THRESHOLD else 255, "1")
+            bw = ImageOps.autocontrast(gray, cutoff=5)
         except Exception as e:
             print(f"Failed to process image for {filename}: {e}")
             return None
