@@ -1,10 +1,15 @@
 import time
 from threading import Event, Thread
+from typing import Literal
 from luma.core.interface.serial import i2c as luma_i2c
 from luma.oled.device import sh1106
 from luma.core.render import canvas
 from luma.core.sprite_system import framerate_regulator
 from PIL import Image, ImageDraw, ImageFont
+
+
+TITLE_FONT_PATH = "/home/dietpi/mtg/fonts/Beleren-Bold.ttf"
+DETAIL_FONT_PATH = "/home/dietpi/mtg/fonts/MPlantin.ttf"
 
 
 class DisplayManager:
@@ -14,19 +19,28 @@ class DisplayManager:
     def __init__(self):
         serial = luma_i2c(port=1, address=0x3C)
         self.display = sh1106(serial, width=128, height=64)
+        self.title_font = ImageFont.truetype(TITLE_FONT_PATH, 20)
+        self.detail_font = ImageFont.truetype(DETAIL_FONT_PATH, 12)
         # Thread and event to control loading animation
         self.toggle_loading_animation_thread = None
         self.toggle_loading_animation_event = Event()
 
-    def display_text(self, text: str) -> None:
-        """Display text on the OLED display.
+    def display_text(self, text: str, mode: Literal["title", "detail"] = "title") -> None:
+        """Display text on the OLED display. Uses automatic line breaks and centers the text on the display.
         
         Args:
             text: String to display on the OLED screen
+            mode: Font mode to use for displaying the text ("title" or "detail")
         """
+        font = self.title_font if mode == "title" else self.detail_font
+        text_lines = self._wrap_text(text, font, self.display.width)
         with canvas(self.display) as draw:
-            # adjust positioning as needed
-            draw.text((10, 25), text, fill="white")
+            for num, line in enumerate(text_lines):
+                text_width = draw.textbbox((0, 0), line, font=font)[2] - draw.textbbox((0, 0), line, font=font)[0]
+                text_height = draw.textbbox((0, 0), line, font=font)[3] - draw.textbbox((0, 0), line, font=font)[1]
+                text_x = (self.display.width - text_width) // 2
+                text_y = (self.display.height - text_height * len(text_lines)) // 2 + num * text_height
+                draw.text((text_x, text_y), line, font=font, fill="white")
 
     def display_card_info(self, card_data: dict) -> None:
         """Display card info on the OLED display. Uses scrolling text with automatic line breaks.
@@ -41,15 +55,14 @@ class DisplayManager:
         power = card_data["power"]
         toughness = card_data["toughness"]
 
-        font = ImageFont.load_default()
-        hyphen_width = font.getlength("-")
+        hyphen_width = self.detail_font.getlength("-")
         separator = "-" * max(1, int(self.display.width / hyphen_width))
-        while font.getlength(separator) > self.display.width:
+        while self.detail_font.getlength(separator) > self.display.width:
             separator = separator[:-1]
-        separator_width = font.getlength(separator)
+        separator_width = self.detail_font.getlength(separator)
 
         def _right_align_text(text: str, target_width: float) -> str:
-            text_width = font.getlength(text)
+            text_width = self.detail_font.getlength(text)
             if text_width >= target_width:
                 return text
             space_count = int(target_width - text_width)
@@ -84,11 +97,11 @@ class DisplayManager:
             end_pause: Time to pause at the end of scrolling
             paragraph_gap: Add an empty line after each paragraph
         """
-        font = ImageFont.load_default()
-        lines = self._wrap_text(text, font, self.display.width, paragraph_gap)
+        lines = self._wrap_text(text, self.detail_font, self.display.width, paragraph_gap)
         if not lines:
             lines = [""]
-        line_height = font.getbbox("A")[3] - font.getbbox("A")[1]
+        lines.append("") # add an empty line at the end to avoid cutting off the last line
+        line_height = self.detail_font.getbbox("A")[3] - self.detail_font.getbbox("A")[1]
         max_lines = max(1, self.display.height // line_height)
         total_lines = len(lines)
 
@@ -96,8 +109,8 @@ class DisplayManager:
             with canvas(self.display) as draw:
                 y = 0
                 for line in lines[start_line:start_line + max_lines]:
-                    draw.text((0, y), line, font=font, fill="white")
-                    y += line_height
+                    draw.text((0, y), line, font=self.detail_font, fill="white")
+                    y += line_height + 4 # add 4 pixel spacing between lines
 
         if total_lines <= max_lines:
             _draw_page(0)
@@ -180,12 +193,12 @@ class DisplayManager:
             return
 
         # Wrap the text to fit inside the bars and calculate positions for centered display
-        text_lines = self._wrap_text(text, ImageFont.load_default(), width - 2 * size)
+        text_lines = self._wrap_text(text, self.detail_font, width - 2 * size)
         pos_line_tuples = []
         draw = ImageDraw.Draw(Image.new(self.display.mode, self.display.size)) # simulate canvas
         for num, line in enumerate(text_lines):
-            text_width = draw.textbbox((0, 0), line)[2] - draw.textbbox((0, 0), line)[0]
-            text_height = draw.textbbox((0, 0), line)[3] - draw.textbbox((0, 0), line)[1]
+            text_width = draw.textbbox((0, 0), line, font=self.detail_font)[2] - draw.textbbox((0, 0), line, font=self.detail_font)[0]
+            text_height = draw.textbbox((0, 0), line, font=self.detail_font)[3] - draw.textbbox((0, 0), line, font=self.detail_font)[1]
             text_x = (width - text_width) // 2
             text_y = (height - text_height * len(text_lines)) // 2 + num * text_height
             pos_line_tuples.append(((text_x, text_y), line))
@@ -193,7 +206,7 @@ class DisplayManager:
         # Animation loop showing rotating bars around text until the event is set
         def _show_animation(event: Event):
             while True:
-                for frame in range(path_length / size // speed):
+                for frame in range(path_length // size // speed):
                     with regulator:
                         actual_frame = frame * size * speed
                         start_positions = [
@@ -210,7 +223,7 @@ class DisplayManager:
                         with canvas(self.display) as draw:
                             draw.point(points, fill="white")
                             for pos, line in pos_line_tuples:
-                                draw.text(pos, line, fill="white")
+                                draw.text(pos, line, font=self.detail_font, fill="white")
                     if event.is_set():
                         return
         
