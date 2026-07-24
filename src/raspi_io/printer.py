@@ -1,3 +1,4 @@
+import time
 from functools import lru_cache
 from typing import Literal
 from PIL import Image, ImageDraw, ImageFont
@@ -7,7 +8,7 @@ from escpos.printer import Serial, Dummy
 TITLE_FONT_PATH = "/home/dietpi/mtg/fonts/Beleren-Bold.ttf"
 DETAIL_FONT_PATH = "/home/dietpi/mtg/fonts/MPlantin.ttf"
 
-CUT_MARGIN = 3 # margin to leave at the bottom of the image for cutting
+CUT_MARGIN = 2 # margin to leave at the bottom of the image for cutting
 
 # Proportions of a real Magic card (63mm x 88mm) used to cap the rendered card length
 CARD_ASPECT_W, CARD_ASPECT_H = 63, 88
@@ -54,6 +55,7 @@ class PrinterManager:
         self.dummy_printer.image(image, impl="bitImageRaster", center=True)
         self.printer._raw(self.dummy_printer.output)
         if feed_after_image:
+            time.sleep(2) # wait for the printer buffer to empty
             self.printer.print_and_feed(CUT_MARGIN)
 
     def print_card_as_image(self, card_data: dict, image: Image.Image) -> None:
