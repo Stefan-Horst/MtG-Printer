@@ -4,7 +4,7 @@ from typing import Literal
 from PIL import Image, ImageDraw, ImageFont
 from escpos.printer import Serial, Dummy
 
-from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, ICON_FONT_PATH, ICON_CODES
+from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, SYMBOL_FONT_PATH, SYMBOL_CODES
 
 
 CUT_MARGIN = 2 # margin to leave at the bottom of the image for cutting
@@ -146,7 +146,7 @@ class PrinterManager:
         draw.rectangle([x0, y, x1, y + h_title - 1], outline=0, width=_OUTLINE)
         draw.text((x0 + inpad, y + h_title / 2), name_fit, font=title_font, fill=0, anchor="lm")
         if mana_cost:
-            draw.text((x1 - inpad, y + h_title / 2), mana_cost, font=title_font, fill=0, anchor="rm")
+            self._draw_rich_text(draw, (x1 - inpad, y + h_title / 2), mana_cost, title_font, fill=0, anchor="rm")
         y += h_title + _PAD
 
         # Art window: art crop scaled to fit while preserving its aspect ratio, centered (no border)
@@ -168,7 +168,7 @@ class PrinterManager:
             step = self._line_height(oracle_font, _LINE_SPACING)
             ty = y + max(inpad, (h_text - len(oracle_lines) * step) // 2)
             for line in oracle_lines:
-                draw.text((x0 + inpad, ty), line, font=oracle_font, fill=0, anchor="la")
+                self._draw_rich_text(draw, (x0 + inpad, ty), line, oracle_font, fill=0, anchor="la")
                 ty += step
 
         # Power/toughness box: anchored to the bottom-right corner, omitted when the card has none
@@ -244,7 +244,7 @@ class PrinterManager:
             for word in paragraph.split():
                 if not current:
                     current = word
-                elif draw.textlength(current + " " + word, font=font) <= max_width:
+                elif self._rich_textlength(draw, current + " " + word, font) <= max_width:
                     current += " " + word
                 else:
                     lines.append(current)
@@ -277,11 +277,11 @@ class PrinterManager:
         for size in range(cap, floor - 1, -1):
             font = self._load_font(size, mode="title")
             name_w = draw.textlength(name, font=font)
-            mana_w = draw.textlength(mana, font=font) if mana else 0
+            mana_w = self._rich_textlength(draw, mana, font) if mana else 0
             if name_w + (gap if mana else 0) + mana_w <= max_width:
                 return font, name
         font = self._load_font(floor, mode="title")
-        mana_w = draw.textlength(mana, font=font) if mana else 0
+        mana_w = self._rich_textlength(draw, mana, font) if mana else 0
         name = self._truncate_to_width(draw, name, font, max_width - (gap if mana else 0) - mana_w)
         return font, name
 
@@ -343,22 +343,103 @@ class PrinterManager:
                     return font, lines
         font = self._load_font(floor, mode="detail")
         return font, self._wrap_paragraphs(draw, text, font, max_width)
-    
+
+    def _symbol_runs(self, text: str,
+                     text_font: ImageFont.FreeTypeFont) -> list[tuple[str, ImageFont.FreeTypeFont]]:
+        """Split text into (segment, font) runs, replacing each SYMBOL_CODES key (e.g. "{W}") with its
+        glyph from the symbol font, sized to match text_font. Consecutive normal characters are kept
+        in one run; text without any symbols yields a single run. Only mana cost and oracle text can
+        contain such symbols.
+
+        Args:
+            text: The text to split, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+
+        Returns:
+            A list of (segment, font) tuples in reading order
+        """
+        symbol_font = self._load_font(text_font.size, mode="symbol")
+        runs, buffer, i = [], [], 0
+        while i < len(text):
+            end = text.find("}", i) if text[i] == "{" else -1
+            key = text[i:end + 1] if end != -1 else ""
+            if key in SYMBOL_CODES:
+                if buffer:
+                    runs.append(("".join(buffer), text_font))
+                    buffer = []
+                runs.append((SYMBOL_CODES[key], symbol_font))
+                i = end + 1
+            else:
+                buffer.append(text[i])
+                i += 1
+        if buffer:
+            runs.append(("".join(buffer), text_font))
+        return runs
+
+    def _rich_textlength(self, draw: ImageDraw.ImageDraw,
+                         text: str,
+                         text_font: ImageFont.FreeTypeFont) -> float:
+        """Return the pixel width of text once SYMBOL_CODES keys are replaced by symbol-font glyphs.
+
+        Args:
+            draw: ImageDraw object used to measure text
+            text: The text to measure, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+
+        Returns:
+            The width of the rendered text in pixels
+        """
+        return sum(draw.textlength(seg, font=font) for seg, font in self._symbol_runs(text, text_font))
+
+    def _draw_rich_text(self, draw: ImageDraw.ImageDraw,
+                        xy: tuple[float, float],
+                        text: str,
+                        text_font: ImageFont.FreeTypeFont,
+                        fill: int,
+                        anchor: str) -> None:
+        """Draw text with SYMBOL_CODES keys replaced by symbol-font glyphs, keeping every run on a
+        shared baseline so symbols align with the surrounding text. Horizontal alignment (anchor[0])
+        may be "l", "m" or "r"; vertical alignment (anchor[1]) may be "a" (top), "m" (middle) or "s".
+
+        Args:
+            draw: ImageDraw object used to draw the text
+            xy: The (x, y) anchor position
+            text: The text to draw, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+            fill: The color to draw the text with
+            anchor: A PIL two-character anchor string
+        """
+        x, y = xy
+        ascent, descent = text_font.getmetrics()
+        if anchor[1] == "a": # top
+            baseline = y + ascent
+        elif anchor[1] == "m": # middle
+            baseline = y + (ascent - descent) / 2
+        else: # "s" baseline
+            baseline = y
+        runs = self._symbol_runs(text, text_font)
+        if anchor[0] != "l": # shift start so the whole run block is right- or center-aligned
+            total = sum(draw.textlength(seg, font=font) for seg, font in runs)
+            x -= total if anchor[0] == "r" else total / 2
+        for seg, font in runs:
+            draw.text((x, baseline), seg, font=font, fill=fill, anchor="ls")
+            x += draw.textlength(seg, font=font)
+
     @lru_cache(maxsize=None)
-    def _load_font(self, size: int, 
-                   mode: Literal["title", "detail"] = "title") -> ImageFont.FreeTypeFont:
-        """Load a scalable font at the given size, falling back to Pillow's default font.
-        Results are cached since the same sizes are requested repeatedly while fitting text.
-        
+    def _load_font(self, size: int,
+                   mode: Literal["title", "detail", "symbol"] = "title") -> ImageFont.FreeTypeFont:
+        """Load a scalable font at the given size. Results are cached since the same sizes are
+        requested repeatedly while fitting text.
+
         Args:
             size: The font size in points
-            mode: The font mode ("title" or "detail")
-        
+            mode: The font mode ("title", "detail" or "symbol" for mana/other card symbols)
+
         Returns:
             A FreeTypeFont object
         """
-        font = TITLE_FONT_PATH if mode == "title" else DETAIL_FONT_PATH
+        font = {"title": TITLE_FONT_PATH, "detail": DETAIL_FONT_PATH, "symbol": SYMBOL_FONT_PATH}[mode]
         return ImageFont.truetype(font, size)
-    
+
     def close(self) -> None:
         self.printer.close()
