@@ -7,7 +7,10 @@ from luma.core.render import canvas
 from luma.core.sprite_system import framerate_regulator
 from PIL import Image, ImageDraw, ImageFont
 
-from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, ICON_FONT_PATH, ICON_CODES
+from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, SYMBOL_FONT_PATH, SYMBOL_CODES
+
+
+VERTICAL_LINE_SPACING = 4 # spacing between vertical lines for detail font
 
 
 class DisplayManager:
@@ -19,6 +22,7 @@ class DisplayManager:
         self.display = sh1106(serial, width=128, height=64)
         self.title_font = ImageFont.truetype(TITLE_FONT_PATH, 20)
         self.detail_font = ImageFont.truetype(DETAIL_FONT_PATH, 12)
+        self.symbol_fonts = {} # symbol fonts cached by size, matching the text font whose glyphs they replace
         # Thread and event to control loading animation
         self.toggle_loading_animation_thread = None
         self.toggle_loading_animation_event = Event()
@@ -32,13 +36,13 @@ class DisplayManager:
         """
         font = self.title_font if mode == "title" else self.detail_font
         text_lines = self._wrap_text(text, font, self.display.width)
+        ascent, descent = font.getmetrics()
+        line_height = ascent + descent
+        start_y = (self.display.height - line_height * len(text_lines)) // 2
         with canvas(self.display) as draw:
             for num, line in enumerate(text_lines):
-                text_width = draw.textbbox((0, 0), line, font=font)[2] - draw.textbbox((0, 0), line, font=font)[0]
-                text_height = draw.textbbox((0, 0), line, font=font)[3] - draw.textbbox((0, 0), line, font=font)[1]
-                text_x = (self.display.width - text_width) // 2
-                text_y = (self.display.height - text_height * len(text_lines)) // 2 + num * text_height
-                draw.text((text_x, text_y), line, font=font, fill="white")
+                self._draw_rich_text(draw, (self.display.width // 2, start_y + num * line_height),
+                                     line, font, fill="white", anchor="ma")
 
     def display_mana_value(self, mana_cost: int) -> None:
         """Display a mana cost value on the OLED display with custom font size and formatting.
@@ -124,8 +128,8 @@ class DisplayManager:
             with canvas(self.display) as draw:
                 y = 0
                 for line in lines[start_line:start_line + max_lines]:
-                    draw.text((0, y), line, font=self.detail_font, fill="white")
-                    y += line_height + 4 # add 4 pixel spacing between lines
+                    self._draw_rich_text(draw, (0, y), line, self.detail_font, fill="white", anchor="la")
+                    y += line_height + VERTICAL_LINE_SPACING
 
         if total_lines <= max_lines:
             _draw_page(0)
@@ -160,7 +164,7 @@ class DisplayManager:
             current_line = words[0]
             for word in words[1:]:
                 candidate = f"{current_line} {word}"
-                if font.getlength(candidate) <= width:
+                if self._rich_textlength(candidate, font) <= width:
                     current_line = candidate
                 else:
                     lines.append(current_line)
@@ -169,6 +173,96 @@ class DisplayManager:
             if paragraph_gap:
                 lines.append("") # empty line after each paragraph
         return lines[:-1] if lines[-1] == "" else lines
+
+    def _symbol_font(self, size: int) -> ImageFont.FreeTypeFont:
+        """Return the symbol font at the given size, cached since the same sizes recur.
+
+        Args:
+            size: The font size in points (matching the text font the symbols appear in)
+        Returns:
+            A FreeTypeFont object for the symbol font
+        """
+        font = self.symbol_fonts.get(size)
+        if font is None:
+            font = ImageFont.truetype(SYMBOL_FONT_PATH, size)
+            self.symbol_fonts[size] = font
+        return font
+
+    def _symbol_runs(self, text: str,
+                     text_font: ImageFont.FreeTypeFont) -> list[tuple[str, ImageFont.FreeTypeFont]]:
+        """Split text into (segment, font) runs, replacing each SYMBOL_CODES key (e.g. "{W}") with its
+        glyph from the symbol font, sized to match text_font. Consecutive normal characters are kept in
+        one run; text without any symbols yields a single run. Only mana cost and oracle text can
+        contain such symbols.
+
+        Args:
+            text: The text to split, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+        Returns:
+            A list of (segment, font) tuples in reading order
+        """
+        symbol_font = self._symbol_font(text_font.size)
+        runs, buffer, i = [], [], 0
+        while i < len(text):
+            end = text.find("}", i) if text[i] == "{" else -1
+            key = text[i:end + 1] if end != -1 else ""
+            if key in SYMBOL_CODES:
+                if buffer:
+                    runs.append(("".join(buffer), text_font))
+                    buffer = []
+                runs.append((SYMBOL_CODES[key], symbol_font))
+                i = end + 1
+            else:
+                buffer.append(text[i])
+                i += 1
+        if buffer:
+            runs.append(("".join(buffer), text_font))
+        return runs
+
+    def _rich_textlength(self, text: str, text_font: ImageFont.FreeTypeFont) -> float:
+        """Return the pixel width of text once SYMBOL_CODES keys are replaced by symbol-font glyphs.
+
+        Args:
+            text: The text to measure, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+        Returns:
+            The width of the rendered text in pixels
+        """
+        return sum(font.getlength(seg) for seg, font in self._symbol_runs(text, text_font))
+
+    def _draw_rich_text(self, draw: ImageDraw.ImageDraw,
+                        xy: tuple[float, float],
+                        text: str,
+                        text_font: ImageFont.FreeTypeFont,
+                        fill: str,
+                        anchor: str = "la") -> None:
+        """Draw text with SYMBOL_CODES keys replaced by symbol-font glyphs, keeping every run on a
+        shared baseline so symbols align with the surrounding text. Horizontal alignment (anchor[0])
+        may be "l", "m" or "r"; vertical alignment (anchor[1]) may be "a" (top), "m" (middle) or "s".
+
+        Args:
+            draw: ImageDraw object used to draw the text
+            xy: The (x, y) anchor position
+            text: The text to draw, possibly containing SYMBOL_CODES keys
+            text_font: Font used for the normal (non-symbol) segments
+            fill: The color to draw the text with
+            anchor: A PIL two-character anchor string
+        """
+        x, y = xy
+        ascent, descent = text_font.getmetrics()
+        if anchor[1] == "a": # top
+            baseline = y + ascent
+        elif anchor[1] == "m": # middle
+            baseline = y + (ascent - descent) / 2
+        else: # "s" baseline
+            baseline = y
+        runs = self._symbol_runs(text, text_font)
+        if anchor[0] != "l": # shift start so the whole run block is right- or center-aligned
+            total = sum(font.getlength(seg) for seg, font in runs)
+            x -= total if anchor[0] == "r" else total / 2
+        for seg, font in runs:
+            draw.text((x, baseline), seg, font=font, fill=fill, anchor="ls")
+            x += font.getlength(seg)
     
     def display_loading_screen(self, text: str, 
                                size: int = 3, 

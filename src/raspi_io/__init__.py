@@ -5,10 +5,10 @@ fonts_path = pathlib.Path(__file__).parent.parent.parent.resolve() / "fonts"
 TITLE_FONT_PATH = str(fonts_path / "Beleren-Bold.ttf")
 DETAIL_FONT_PATH = str(fonts_path / "MPlantin.ttf")
 
-# Unicode character codes for mana icons from mana font.
+# Unicode character codes for mana symbols from mana font.
 # Doesn't include hybrid mana symbols and phyrexian colored mana symbols
-ICON_FONT_PATH = str(fonts_path / "mana.ttf")
-ICON_CODES = {
+SYMBOL_FONT_PATH = str(fonts_path / "mana.ttf")
+SYMBOL_CODES = {
     "{W}": u"\ue600",
     "{U}": u"\ue601",
     "{B}": u"\ue602",
