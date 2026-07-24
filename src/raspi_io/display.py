@@ -42,6 +42,23 @@ class DisplayManager:
                 text_y = (self.display.height - text_height * len(text_lines)) // 2 + num * text_height
                 draw.text((text_x, text_y), line, font=font, fill="white")
 
+    def display_mana_value(self, mana_cost: int) -> None:
+        """Display a mana cost value on the OLED display with custom font size and formatting.
+        
+        Args:
+            mana_cost: Integer mana cost to display
+        """
+        line1 = "Mana Cost"
+        x1 = (self.display.width - self.title_font.getlength(line1)) // 2
+        y1 = (self.display.height - self.title_font.getbbox(line1)[3]) // 2 - self.title_font.getbbox(line1)[3] - 5
+        line2 = str(mana_cost)
+        title_font_large = ImageFont.truetype(TITLE_FONT_PATH, 40)
+        x2 = (self.display.width - title_font_large.getlength(line2)) // 2
+        y2 = (self.display.height - title_font_large.getbbox(line2)[3]) // 2 + title_font_large.getbbox(line1)[3] - 30
+        with canvas(self.display) as draw:
+            draw.text((x1, y1), line1, font=self.title_font, fill="white")
+            draw.text((x2, y2), line2, font=title_font_large, fill="white")
+
     def display_card_info(self, card_data: dict) -> None:
         """Display card info on the OLED display. Uses scrolling text with automatic line breaks.
         
