@@ -10,8 +10,8 @@ ROTARY_CLK = 16
 ROTARY_DT = 18
 ROTARY_SW = 15 # Button
 # LED Button
-BUTTON_PIN = 13
-BUTTON_LED = 11
+BUTTON_PIN = 11
+BUTTON_LED = 13
 
 # LGPIO actually implements bouncetime differently: 
 # it is the time a signal must be stable before it is detected as a valid event.
