@@ -4,9 +4,8 @@ from typing import Literal
 from PIL import Image, ImageDraw, ImageFont
 from escpos.printer import Serial, Dummy
 
+from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, ICON_FONT_PATH, ICON_CODES
 
-TITLE_FONT_PATH = "/home/dietpi/mtg/fonts/Beleren-Bold.ttf"
-DETAIL_FONT_PATH = "/home/dietpi/mtg/fonts/MPlantin.ttf"
 
 CUT_MARGIN = 2 # margin to leave at the bottom of the image for cutting
 

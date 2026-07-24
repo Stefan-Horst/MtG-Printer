@@ -7,9 +7,7 @@ from luma.core.render import canvas
 from luma.core.sprite_system import framerate_regulator
 from PIL import Image, ImageDraw, ImageFont
 
-
-TITLE_FONT_PATH = "/home/dietpi/mtg/fonts/Beleren-Bold.ttf"
-DETAIL_FONT_PATH = "/home/dietpi/mtg/fonts/MPlantin.ttf"
+from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, ICON_FONT_PATH, ICON_CODES
 
 
 class DisplayManager:
