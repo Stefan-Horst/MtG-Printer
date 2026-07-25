@@ -2,21 +2,25 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/"]
+
 [project]
 name = "mtgprinter"
 version = "1.0.0"
 authors = [{ name="Stefan Horst", email="stefan-horst@gmx.de" }]
-description = "A tool for printing Magic cards on a thermal printer using a Raspberry Pi."
+description = "A program for printing Magic cards for the Momir mode on a thermal printer using a Raspberry Pi."
 dependencies = [
     "requests",
     "aiohttp[speedups]",
-    "aiofiles",
+    "aiofile",
     "pillow",
+    "splitstream",
 ]
 
 [project.optional-dependencies]
 raspi = [
-    "rpi.gpio",
+    "rpi-lgpio",
     "luma.oled",
     "python.escpos[serial]",
 ]
