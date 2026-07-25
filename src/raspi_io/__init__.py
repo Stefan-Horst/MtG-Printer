@@ -1,4 +1,5 @@
 import pathlib
+
 fonts_path = pathlib.Path(__file__).parent.parent.parent.resolve() / "fonts"
 
 # Layout and design specifications

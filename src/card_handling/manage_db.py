@@ -2,10 +2,12 @@ import sqlite3
 from pathlib import Path
 from typing import Literal
 
+from . import DATA_PATH, PROJECT_PATH
 
-DB_DIR = "./data/db"
+
+DB_DIR = str(DATA_PATH / "db")
 DB_FILE = "cards.db"
-SCHEMA_DIR = "./db_init_scripts"
+SCHEMA_DIR = str(PROJECT_PATH / "db_init_scripts")
 SCHEMA_FILE = "create_cards_db.sql"
 
 

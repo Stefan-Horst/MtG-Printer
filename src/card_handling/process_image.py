@@ -3,10 +3,12 @@ from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageOps
 import aiofile
+
 from card_handling.load_scryfall_data import IMAGE_TYPE_ART, IMAGE_TYPE_FULL, _IMAGE_DIR_FULL, make_filename_valid
+from . import DATA_PATH
 
 
-PRINTER_IMAGE_DIR = "./data/card_images/printer"
+PRINTER_IMAGE_DIR = str(DATA_PATH / "card_images/printer")
 IMAGE_EXTENSION = ".png"
 MAX_CONCURRENT_TASKS = 100
 BLACK_WHITE_THRESHOLD = 128

@@ -9,12 +9,14 @@ import aiohttp
 from splitstream import splitfile
 from PIL import Image
 
+from . import DATA_PATH
+
 
 MOMIR_AVATAR_NAME = "Momir Vig, Simic Visionary Avatar"
 ALLOWED_CARDS = [MOMIR_AVATAR_NAME] # whitelisted cards to download even if they would not pass the validity filter
 
-IMAGE_DIR = "./data/card_images/raw"
-DATA_DIR = "./data/card_data"
+IMAGE_DIR = str(DATA_PATH / "card_images/raw")
+DATA_DIR = str(DATA_PATH / "card_data")
 METADATA_FILE = "metadata.json"
 DATA_FILE = "cards.json"
 
