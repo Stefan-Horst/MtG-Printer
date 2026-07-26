@@ -349,7 +349,8 @@ class PrinterManager:
         """Split text into (segment, font) runs, replacing each SYMBOL_CODES key (e.g. "{W}") with its
         glyph from the symbol font, sized to match text_font. Consecutive normal characters are kept
         in one run; text without any symbols yields a single run. Only mana cost and oracle text can
-        contain such symbols.
+        contain such symbols. A "{...}" token that is not a known symbol is shown with round braces
+        instead of curly ones.
 
         Args:
             text: The text to split, possibly containing SYMBOL_CODES keys
@@ -363,11 +364,14 @@ class PrinterManager:
         while i < len(text):
             end = text.find("}", i) if text[i] == "{" else -1
             key = text[i:end + 1] if end != -1 else ""
-            if key in SYMBOL_CODES:
+            if key in SYMBOL_CODES: # known symbol: replace the key with its glyph in the symbol font
                 if buffer:
                     runs.append(("".join(buffer), text_font))
                     buffer = []
                 runs.append((SYMBOL_CODES[key], symbol_font))
+                i = end + 1
+            elif end != -1: # a {...} token without a known symbol: show it with round braces instead
+                buffer.append("(" + text[i + 1:end] + ")")
                 i = end + 1
             else:
                 buffer.append(text[i])
