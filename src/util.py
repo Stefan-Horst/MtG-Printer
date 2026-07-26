@@ -27,16 +27,17 @@ def init_scryfall_data() -> bool:
             return False
     return True
 
-def init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, dict[str, list[tuple[str, str]]]]:
+def init_db(image_download_types: list[str]) -> tuple[bool, dict[str, list[tuple[str, str]]]]:
     """Create a SQLite database and load card data into it. Save image URLs for later downloading.
     
     Args:
-        image_type_data: Dictionary mapping image types to currently empty lists of image URLs.
+        image_download_types: List of image types to download (e.g., ["border_crop", "art_crop"]).
     
     Returns:
         A tuple of the dict and a boolean being True if data was successfully loaded into the database, False otherwise.
     """
     print("=> Loading card data into database...")
+    image_type_data = {image_type: [] for image_type in image_download_types}
     try:
         create_database(ignore_if_exists=True)
         db = DatabaseManager()
@@ -92,6 +93,7 @@ def init_card_images(image_type_data: dict[str, list[tuple[str, str]]]) -> bool:
     """
     print("=> Downloading card images...")
     for image_type, image_urls in image_type_data.items():
+        print(f"Downloading {image_type} images...")
         failed_downloads = download_multiple_card_images(image_urls, image_dir=IMAGE_DIR+"/"+image_type, skip_existing=True)
         print(f"Finished downloading {image_type} images. {len(failed_downloads)} failed downloads.")
         for i in range(IMAGE_DOWNLOAD_RETRIES):
@@ -120,12 +122,14 @@ def init_image_processing(image_download_types: list[str], device_width: int) ->
     """
     print("=> Processing card images...")
     for image_type in image_download_types:
+        print(f"Processing {image_type} images...")
         try:
             process_all_images(device_width, IMAGE_DIR+"/"+image_type, PRINTER_IMAGE_DIR+"/"+image_type, skip_existing=True)
         except Exception as e:
             print(f"Failed to process {image_type} images: {e}\nExiting.")
             clear_local_data() # remove card data to avoid inconsistent state on next run
             return False
+        print(f"All {image_type} images processed successfully.")
     return True
 
 def has_internet_connection() -> bool:

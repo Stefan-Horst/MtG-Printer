@@ -31,7 +31,6 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
     if not all(image_type in _SUPPORTED_IMAGE_TYPES for image_type in image_download_types):
         print(f"Error: Unsupported image type(s) specified. Supported types are: {_SUPPORTED_IMAGE_TYPES}")
         return False
-    image_type_data = {image_type: [] for image_type in image_download_types}
     
     # Step 1: Download card data from Scryfall API and save to JSON file
     display.display_loading_screen("[1/4]\nDownloading\ncard data...", size=1)
@@ -41,7 +40,7 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
     display.display_loading_screen("[2/4]\nLoading data\ninto db...", size=2)
-    success, image_type_data = init_db(image_type_data)
+    success, image_type_data = init_db(image_download_types)
     if not success:
         return False
 
