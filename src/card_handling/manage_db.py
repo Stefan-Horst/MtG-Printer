@@ -83,14 +83,14 @@ class DatabaseManager:
     
     def close(self) -> None:
         self.conn.close()
-        
-    def save_card_data(self, card: dict, 
-                       commit: bool = True, 
-                       handle_exist: Literal["ignore", "replace", "fail"] = "ignore") -> None:
-        """Save a single card into the database.
+    
+    def save_cards_data(self, cards: list[dict], 
+                        commit: bool = True, 
+                        handle_exist: Literal["ignore", "replace", "fail"] = "ignore") -> None:
+        """Save a list of cards into the database.
         
         Args:
-            card: A dictionary containing the card data
+            cards: A list of dictionaries containing the card data
             commit: Whether to commit the transaction
             handle_exist: How to handle if the card already exists in the database.
                 "ignore": Do nothing and keep the existing card (default)
@@ -105,64 +105,70 @@ class DatabaseManager:
         
         if not self.cursor:
             self.create_cursor()
-        self._insert_card_into_db(card, exist_clause)
+        self._insert_cards_into_db(cards, exist_clause)
         if commit:
             self.commit()
 
-    def _insert_card_into_db(self, card: dict, handle_exist_clause: str) -> None:
-        card_id = card.get("id")
+    def _insert_cards_into_db(self, cards: list[dict], handle_exist_clause: str) -> None:
         # Insert main card data
-        self.cursor.execute(f"""
+        self.cursor.executemany(f"""
             INSERT {handle_exist_clause}INTO cards (
                 id, oracle_id, name, layout, mana_cost, cmc, type_line, 
                 oracle_text, power, toughness, defense, loyalty, 
                 flavor_text, flavor_name, hand_modifier, life_modifier, 
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            card_id,
-            card.get("oracle_id"),
-            card.get("name"),
-            card.get("layout"),
-            card.get("mana_cost"),
-            card.get("cmc"),
-            card.get("type_line"),
-            card.get("oracle_text"),
-            card.get("power"),
-            card.get("toughness"),
-            card.get("defense"),
-            card.get("loyalty"),
-            card.get("flavor_text"),
-            card.get("flavor_name"),
-            card.get("hand_modifier"),
-            card.get("life_modifier")
-        ))
+        """, [(
+                card.get("id"),
+                card.get("oracle_id"),
+                card.get("name"),
+                card.get("layout"),
+                card.get("mana_cost"),
+                card.get("cmc"),
+                card.get("type_line"),
+                card.get("oracle_text"),
+                card.get("power"),
+                card.get("toughness"),
+                card.get("defense"),
+                card.get("loyalty"),
+                card.get("flavor_text"),
+                card.get("flavor_name"),
+                card.get("hand_modifier"),
+                card.get("life_modifier")
+            ) for card in cards]
+        )
                 
         # Insert related data into junction tables
-        if "card_faces" in card:
-            for face in card["card_faces"]:
-                self.cursor.execute(f"""
-                    INSERT {handle_exist_clause}INTO card_faces (
-                        card_id, name, mana_cost, cmc, flavor_text, 
-                        defense, power, toughness, loyalty, layout, 
-                        oracle_id, oracle_text, type_line
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    card_id,
-                    face.get("name"),
-                    face.get("mana_cost"),
-                    face.get("cmc"),
-                    face.get("flavor_text"),
-                    face.get("defense"),
-                    face.get("power"),
-                    face.get("toughness"),
-                    face.get("loyalty"),
-                    face.get("layout"),
-                    face.get("oracle_id"),
-                    face.get("oracle_text"),
-                    face.get("type_line")
-                ))
+        self.cursor.executemany(f"""
+            INSERT {handle_exist_clause}INTO card_faces (
+                card_id, name, mana_cost, cmc, flavor_text, 
+                defense, power, toughness, loyalty, layout, 
+                oracle_id, oracle_text, type_line
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, [
+                [
+                    (
+                        card.get("id"),
+                        face.get("name"),
+                        face.get("mana_cost"),
+                        face.get("cmc"),
+                        face.get("flavor_text"),
+                        face.get("defense"),
+                        face.get("power"),
+                        face.get("toughness"),
+                        face.get("loyalty"),
+                        face.get("layout"),
+                        face.get("oracle_id"),
+                        face.get("oracle_text"),
+                        face.get("type_line")
+                    ) for face in card["card_faces"]
+                ] for card in cards
+        ])
         
-        if "image_uris" in card:
-            for type, uri in card["image_uris"].items():
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_image_uris (card_id, type, uri) 
-                                        VALUES (?, ?, ?)""", (card_id, type, uri))
+        self.cursor.executemany(f"""
+            INSERT {handle_exist_clause}INTO card_image_uris (card_id, type, uri) 
+            VALUES (?, ?, ?)""", [
+                [
+                    (card.get("id"), card_type, uri) for card_type, uri in card["image_uris"].items()
+                ] for card in cards
+            ]
+        )
