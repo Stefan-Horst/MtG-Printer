@@ -11,7 +11,7 @@ from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, R
 from card_handling.load_scryfall_data import MOMIR_AVATAR_NAME, IMAGE_TYPE_FULL, IMAGE_TYPE_ART, _SUPPORTED_IMAGE_TYPES
 from card_handling.manage_db import DatabaseManager
 from card_handling.process_image import get_card_image_for_mode
-from card_handling.queries import get_random_creature_card, get_card_data, get_standardized_card_dict, get_nonexistent_creature_mana_costs, get_mana_cost_range
+from card_handling.queries import get_random_creature_card, get_card_data, get_nonexistent_creature_mana_costs, get_mana_cost_range
 from util import init_scryfall_data, init_db, init_card_images, init_image_processing, has_internet_connection
 
 
@@ -89,8 +89,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 # SHOW CARD CONTEXT INFO
                 if current_card:
                     gpio.toggle_led_blink(True) # make LED blink while busy
-                    current_card_info = get_card_data(current_card, db)
-                    current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                    current_card_info = get_card_data(current_card, db, current_face)
                     display.display_card_info(current_card_info)
                     gpio.toggle_led_blink(False)
                     gpio.toggle_button_led(True) # turn button LED back on after loading screen
@@ -162,8 +161,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
                 display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
                 current_card, current_face = get_random_creature_card(rotary_value, db)
-                current_card_info = get_card_data(current_card, db)
-                current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                current_card_info = get_card_data(current_card, db, current_face)
                 current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if full_print_mode: # print full card image
                     printer.print_card_image(current_card_image)
@@ -181,8 +179,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.display_loading_screen("Printing Momir Avatar!")
                 current_card = MOMIR_AVATAR_NAME
                 current_face = None
-                current_card_info = get_card_data(current_card, db)
-                current_card_info = get_standardized_card_dict(current_card_info, current_face)
+                current_card_info = get_card_data(current_card, db, current_face)
                 current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if full_print_mode: # print full card image
                     printer.print_card_image(current_card_image)

@@ -54,14 +54,18 @@ def get_random_creature_card(mana_cost: int,
         break
     return (card_name, face_name)
 
-def get_card_data(card_name: str, db: DatabaseManager) -> dict:
-    """Get the data of a card from the database.
+def get_card_data(card_name: str, db: DatabaseManager, relevant_face: str = None) -> dict:
+    """Get a dictionary containing the standardized card information of a card from the database.
+    Handles double-sided cards by using the data from the specified relevant face. 
+    Combines data for cards with multiple faces on one side into a single standardized entry 
+    where the names and oracle texts are combined, separated by " // ".
     
     Args:
         card_name: The name of the card to query.
         db: An instance of the DatabaseManager to query the database.
+        relevant_face: The name of the face to use for double-faced cards.
     Returns:
-        dict: A dictionary containing the data of the card.
+        dict: A dictionary containing the standardized data of the card.
     """
     result = db.execute_query(
         "SELECT * FROM cards WHERE name = ?", 
@@ -69,7 +73,10 @@ def get_card_data(card_name: str, db: DatabaseManager) -> dict:
     )
     if not result:
         raise ValueError("Card not found in database")
-    return result[0]
+    card_data = result[0]
+    if card_data.get("name", None) == None: # make sure result contains card data
+        raise ValueError("Result does not contain card data")
+    return _get_standardized_card_dict(card_data, relevant_face)
 
 def get_mana_cost_range(db: DatabaseManager) -> tuple[int, int]:
     """Get the minimum and maximum mana cost values from the database.
@@ -99,7 +106,7 @@ def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:
     mana_costs = [r[0] for r in result]
     return [cost for cost in range(mana_costs[-1]+1) if cost not in mana_costs]
 
-def get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> dict:
+def _get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> dict:
     """Get a dictionary containing the standardized card information, meaning all relevant keys exist. 
     Handles double-sided cards by using the data from the specified relevant face. 
     Combines data for cards with multiple faces on one side into a single standardized entry 
