@@ -4,7 +4,10 @@
 
 
 from card_handling.load_scryfall_data import IMAGE_TYPE_FULL, IMAGE_TYPE_ART, _SUPPORTED_IMAGE_TYPES
-from main import _init_scryfall_data, _init_db, _init_card_images, _init_image_processing, has_internet_connection, cleanup
+from util import init_scryfall_data, init_db, init_card_images, init_image_processing, has_internet_connection
+
+
+PRINTER_WIDTH = 384 # width of printer in pixels
 
 
 def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
@@ -23,22 +26,22 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
     image_type_data = {image_type: [] for image_type in image_download_types}
     
     # Step 1: Download card data from Scryfall API and save to JSON file
-    success = _init_scryfall_data()
+    success = init_scryfall_data()
     if not success:
         return False
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
-    success, image_type_data = _init_db(image_type_data)
+    success, image_type_data = init_db(image_type_data)
     if not success:
         return False
 
     # Step 3: Download card images based on the downloaded card data
-    success = _init_card_images(image_type_data)
+    success = init_card_images(image_type_data)
     if not success:
         return False
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
-    success = _init_image_processing(image_download_types)
+    success = init_image_processing(image_download_types, PRINTER_WIDTH)
     if not success:
         return False
     return True
@@ -59,9 +62,7 @@ if __name__ == "__main__":
         print("=> Using only full card images for printing.")
     elif enabled_image_types == [IMAGE_TYPE_ART]:
         print("=> Using only art crop images for printing.")
-    
-    ### INIT DATA
-    
+        
     init_success = False
     if has_internet_connection():
         init_success = init(enabled_image_types)
@@ -72,7 +73,3 @@ if __name__ == "__main__":
         print("===> Initialization successful.")
     else:
         print("===> Initialization failed.")
-    
-    ### CLEANUP
-
-    cleanup()
