@@ -87,67 +87,32 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
     print("=> Downloading card images...")
     display.display_loading_screen("[3/4] Downloading card images...", size=3)
     for image_type, image_urls in image_type_data.items():
-        success = _download_images_with_retries(image_urls, IMAGE_DIR+"/"+image_type, image_type)
-        if not success:
+        failed_downloads = download_multiple_card_images(image_urls, image_dir=IMAGE_DIR+"/"+image_type, skip_existing=True)
+        print(f"Finished downloading {image_type} images. {len(failed_downloads)} failed downloads.")
+        for i in range(IMAGE_DOWNLOAD_RETRIES):
+            if failed_downloads:
+                print(f"Retrying failed downloads (attempt {i + 1}/{IMAGE_DOWNLOAD_RETRIES})...")
+                failed_downloads = download_multiple_card_images(failed_downloads, image_dir=IMAGE_DIR+"/"+image_type, skip_existing=True)
+                print(f"Retry finished. {len(failed_downloads)} failed downloads remain.")
+            else:
+                print(f"All {image_type} images downloaded successfully.")
+                break
+        if failed_downloads:
+            print(f"Failed to download {image_type} images for {len(failed_downloads)} cards. Exiting.")
+            clear_local_data() # remove card data to avoid inconsistent state on next run
             return False
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     print("=> Processing card images...")
     display.display_loading_screen("[4/4] Processing card images...", size=4)
     for image_type, image_urls in image_type_data.items():
-        success = _process_images_with_retries(IMAGE_DIR+"/"+image_type, PRINTER_IMAGE_DIR+"/"+image_type, image_type)
-        if not success:
+        try:
+            process_all_images(printer.device_width, IMAGE_DIR+"/"+image_type, PRINTER_IMAGE_DIR+"/"+image_type, skip_existing=True)
+        except Exception as e:
+            print(f"Failed to process {image_type} images: {e}\nExiting.")
+            clear_local_data() # remove card data to avoid inconsistent state on next run
             return False
-    return True
-
-def _download_images_with_retries(image_data_list: list[tuple[str, str]], 
-                                  image_dir: str, 
-                                  images_name: str) -> bool:
-    """
-    Download card images from Scryfall with retries for failed downloads.
     
-    Args:
-        image_data_list: List of tuples containing card names and image URLs to download.
-        image_dir: Directory to save the downloaded images.
-        images_name: Name of the image type being downloaded (e.g., "border_crop", "art_crop").
-
-    Returns:
-        bool: True if all images were downloaded successfully, False otherwise.
-    """
-    failed_downloads = download_multiple_card_images(image_data_list, image_dir=image_dir, skip_existing=True)
-    print(f"Finished downloading {images_name} images. {len(failed_downloads)} failed downloads.")
-    for i in range(IMAGE_DOWNLOAD_RETRIES):
-        if failed_downloads:
-            print(f"Retrying failed downloads (attempt {i + 1}/{IMAGE_DOWNLOAD_RETRIES})...")
-            failed_downloads = download_multiple_card_images(failed_downloads, image_dir=image_dir, skip_existing=True)
-            print(f"Retry finished. {len(failed_downloads)} failed downloads remain.")
-        else:
-            print(f"All {images_name} images downloaded successfully.")
-            break
-    if failed_downloads:
-        print(f"Failed to download {images_name} images for {len(failed_downloads)} cards. Exiting.")
-        clear_local_data() # remove card data to avoid inconsistent state on next run
-        return False # failure
-    return True # success
-
-def _process_images_with_retries(image_dir: str, output_dir: str, images_name: str) -> bool:
-    """
-    Process card images to create high-contrast black & white versions optimized for printing, with retries for failed processing.
-    
-    Args:
-        image_dir: Directory containing the source images.
-        output_dir: Directory to save the processed images.
-        images_name: Name of the image type being processed (e.g., "border_crop", "art_crop").
-
-    Returns:
-        bool: True if all images were processed successfully, False otherwise.
-    """
-    try:
-        process_all_images(printer.device_width, image_dir, output_dir, skip_existing=True)
-    except Exception as e:
-        print(f"Failed to process {images_name} images: {e}\nExiting.")
-        clear_local_data() # remove card data to avoid inconsistent state on next run
-        return False
     return True
 
 
