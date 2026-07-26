@@ -10,6 +10,7 @@ from . import DATA_PATH
 
 PRINTER_IMAGE_DIR = str(DATA_PATH / "card_images/printer")
 IMAGE_EXTENSION = ".png"
+BATCH_SIZE = 1000
 MAX_CONCURRENT_TASKS = 100
 
 _PRINTER_IMAGE_DIR_FULL = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_FULL
@@ -19,39 +20,48 @@ _PRINTER_IMAGE_DIR_ART = PRINTER_IMAGE_DIR+"/"+IMAGE_TYPE_ART
 def process_all_images(device_width: int, 
                        image_dir: str = _IMAGE_DIR_FULL, 
                        output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
+                       batch_size: int = BATCH_SIZE,
                        skip_existing: bool = True) -> None:
     """
-    Process all images in the specified directory and save the results separately.
+    Process all images in the specified directory in batches and save the results separately.
 
     Args:
         device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images
+        batch_size: Number of images to process at once
         skip_existing: whether to skip processing if the output file already exists
     """
-    asyncio.run(_process_all_images(device_width, image_dir, output_dir, skip_existing))
+    asyncio.run(_process_all_images(device_width, image_dir, output_dir, batch_size, skip_existing))
 
 async def _process_all_images(device_width: int, 
                               image_dir: str, 
                               output_dir: str, 
+                              batch_size: int,
                               skip_existing: bool) -> None:
     """
-    Process all images in the specified directory and save the results separately.
+    Process all images in the specified directory in batches and save the results separately.
 
     Args:
         device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images
+        batch_size: Number of images to process at once
         skip_existing: whether to skip processing if the output file already exists
     """
     input_path = Path(image_dir)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
+    image_files = [image_file for image_file in input_path.iterdir()
+                   if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
-    tasks = [process_image(image_file.name, device_width, image_dir, output_dir, skip_existing, sem=sem) 
-             for image_file in input_path.iterdir()
-             if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
-    await asyncio.gather(*tasks)
+    batch_amount = (len(image_files) + batch_size - 1) // batch_size
+    for i in range(0, len(image_files), batch_size):
+        print(f"Processing image batch {i//batch_size + 1}/{batch_amount}...")
+        chunk = image_files[i:i+batch_size]
+        tasks = [process_image(image_file.name, device_width, image_dir, output_dir, skip_existing, sem=sem) 
+                 for image_file in chunk]
+        await asyncio.gather(*tasks)
 
 async def process_image(file: str, 
                         device_width: int,
