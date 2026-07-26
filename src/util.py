@@ -45,6 +45,7 @@ def init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, di
         return False, image_type_data
     
     cached_card_data = []
+    count = 0
     for card_data in load_scryfall_card_data_chunks():
         cached_card_data.append(card_data)
         if len(cached_card_data) >= CARDS_CACHE_AMOUNT:
@@ -60,9 +61,9 @@ def init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, di
                     clear_local_data() # remove card data to avoid inconsistent state on next run
                     return False, image_type_data
             for image_type, image_urls in image_type_data.items():
-                image_urls.extend(
-                    [get_card_image_urls(card, image_type) for card in cached_card_data]
-                )
+                for card in cached_card_data:
+                    image_urls.extend(get_card_image_urls(card, image_type))
+            count += len(cached_card_data)
             cached_card_data = []
             # Commit transactions
             try:
@@ -75,7 +76,7 @@ def init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, di
                     print(f"Failed to commit changes to database: {e}\nExiting.")
                     clear_local_data() # remove card data to avoid inconsistent state on next run
                     return False, image_type_data
-            print(f"Loaded {len(cached_card_data)} cards into database.")
+            print(f"Loaded {count} cards into database.")
             
     db.close()
     return True, image_type_data
