@@ -54,12 +54,16 @@ async def _process_all_images(device_width: int,
     output_path.mkdir(parents=True, exist_ok=True)
     image_files = [image_file for image_file in input_path.iterdir()
                    if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
+    if skip_existing:
+        existing_images = {file.stem for file in input_path.glob("*.jpg")}
+        image_files = [file for file in image_files if file.stem not in existing_images]
+        print(f"Skipping {len(existing_images)} existing images. Processing {len(image_files)} new images...")
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
     batch_amount = (len(image_files) + batch_size - 1) // batch_size
     for i in range(0, len(image_files), batch_size):
-        print(f"Processing image batch {i//batch_size + 1}/{batch_amount}...")
+        print(f"Processing image batch {i // batch_size + 1}/{batch_amount}...")
         chunk = image_files[i:i+batch_size]
-        tasks = [process_image(image_file.name, device_width, image_dir, output_dir, skip_existing, sem=sem) 
+        tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
                  for image_file in chunk]
         await asyncio.gather(*tasks)
 
@@ -67,7 +71,6 @@ async def process_image(file: str,
                         device_width: int,
                         image_dir: str = _IMAGE_DIR_FULL, 
                         output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
-                        skip_existing: bool = True, 
                         return_image: bool = False,
                         sem: asyncio.Semaphore = None) -> Image.Image | None:
     """
@@ -79,7 +82,6 @@ async def process_image(file: str,
         device_width: Width of the printer in pixels
         image_dir: directory containing the source images
         output_dir: directory for the processed images; if None, the image will not be saved
-        skip_existing: whether to skip processing if the output file already exists
         return_image: whether to return the processed image; if False, the function returns None
         sem: optional asyncio.Semaphore to limit concurrent processing; if None, no limit is applied
 
@@ -107,21 +109,20 @@ async def process_image(file: str,
         if output_dir:
             output_path = Path(output_dir)
             output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
-            if not skip_existing or not output_file.exists():
-                buffer = BytesIO()
-                bw.save(buffer, format=IMAGE_EXTENSION[1:])
+            buffer = BytesIO()
+            bw.save(buffer, format=IMAGE_EXTENSION[1:])
+            try:
+                async with aiofile.async_open(output_file, "wb") as f:
+                    await f.write(buffer.getbuffer())
+            except Exception:
+                Path(output_file).unlink(missing_ok=True)
+                print(f"Failed to save image for {filename}. Trying again...")
                 try:
                     async with aiofile.async_open(output_file, "wb") as f:
                         await f.write(buffer.getbuffer())
-                except Exception:
+                except Exception as e:
                     Path(output_file).unlink(missing_ok=True)
-                    print(f"Failed to save image for {filename}. Trying again...")
-                    try:
-                        async with aiofile.async_open(output_file, "wb") as f:
-                            await f.write(buffer.getbuffer())
-                    except Exception as e:
-                        Path(output_file).unlink(missing_ok=True)
-                        print(f"Failed to save image for {filename}: {e}")
+                    print(f"Failed to save image for {filename}: {e}")
 
         if return_image:
             return bw

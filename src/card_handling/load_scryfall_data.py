@@ -276,7 +276,7 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
     async with aiohttp.ClientSession(connector=conn) as session:
         batch_amount = (len(images_data) + batch_size - 1) // batch_size
         for i in range(0, len(images_data), batch_size):
-            print(f"Downloading image batch {i//batch_size + 1}/{batch_amount}...")
+            print(f"Downloading image batch {i // batch_size + 1}/{batch_amount}...")
             chunk = images_data[i:i+batch_size]
             tasks = [_download_card_image(name, url, session, image_dir) for name, url in chunk]
             results = await asyncio.gather(*tasks)
