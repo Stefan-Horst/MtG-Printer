@@ -5,7 +5,9 @@ from card_handling.manage_db import DatabaseManager, create_database
 from card_handling.process_image import PRINTER_IMAGE_DIR, process_all_images
 
 
+CARDS_CACHE_AMOUNT = 2000 # amount of cards to load into memory and then save into the db at once
 IMAGE_DOWNLOAD_RETRIES = 3
+
 CONNECTION_TEST_HOST = "1.1.1.1" # host to test internet connection against (Cloudflare DNS)
 
 
@@ -42,30 +44,39 @@ def init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, di
         print(f"Failed to create or open database: {e}.\nExiting.")
         return False, image_type_data
     
+    cached_card_data = []
     for card_data in load_scryfall_card_data_chunks():
-        try:
-            db.save_card_data(card_data, commit=False, handle_exist="ignore")
-        except Exception:
-            print(f"Failed to save card data for {card_data.get('name', 'Unknown')}. Trying again...")
+        cached_card_data.append(card_data)
+        if len(cached_card_data) >= CARDS_CACHE_AMOUNT:
+            # Save card data
             try:
-                db.save_card_data(card_data, commit=False, handle_exist="ignore")
-            except Exception as e:
-                print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}.\nExiting.")
-                clear_local_data() # remove card data to avoid inconsistent state on next run
-                return False, image_type_data
-        for image_type, image_urls in image_type_data.items():
-            image_urls.extend(get_card_image_urls(card_data, image_type))
-    
-    try:
-        db.commit()
-    except Exception:
-        print("Failed to commit changes to database. Trying again...")
-        try:
-            db.commit()
-        except Exception as e:
-            print(f"Failed to commit changes to database: {e}\nExiting.")
-            clear_local_data() # remove card data to avoid inconsistent state on next run
-            return False, None
+                db.save_cards_data(cached_card_data, commit=False, handle_exist="ignore")
+            except Exception:
+                print("Failed to save card data for batch. Trying again...")
+                try:
+                    db.save_cards_data(cached_card_data, commit=False, handle_exist="ignore")
+                except Exception as e:
+                    print(f"Failed to save card data for batch: {e}.\nExiting.")
+                    clear_local_data() # remove card data to avoid inconsistent state on next run
+                    return False, image_type_data
+            for image_type, image_urls in image_type_data.items():
+                image_urls.extend(
+                    [get_card_image_urls(card, image_type) for card in cached_card_data]
+                )
+            cached_card_data = []
+            # Commit transactions
+            try:
+                db.commit()
+            except Exception:
+                print("Failed to commit changes to database. Trying again...")
+                try:
+                    db.commit()
+                except Exception as e:
+                    print(f"Failed to commit changes to database: {e}\nExiting.")
+                    clear_local_data() # remove card data to avoid inconsistent state on next run
+                    return False, image_type_data
+            print(f"Loaded {len(cached_card_data)} cards into database.")
+            
     db.close()
     return True, image_type_data
 
