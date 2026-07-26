@@ -114,32 +114,15 @@ class DatabaseManager:
         # Insert main card data
         self.cursor.execute(f"""
             INSERT {handle_exist_clause}INTO cards (
-                id, oracle_id, arena_id, resource_id, name, lang, released_at, uri, 
-                scryfall_uri, layout, highres_image, image_status, mana_cost, cmc, 
-                type_line, oracle_text, power, toughness, defense, loyalty, rarity, 
-                artist, illustration_id, border_color, frame, security_stamp, 
-                card_back_id, set_id, set_, set_name, set_type, set_uri, 
-                set_search_uri, scryfall_set_uri, rulings_uri, prints_search_uri, 
-                watermark, flavor_text, flavor_name, printed_name, printed_text, 
-                printed_type_line, hand_modifier, life_modifier, mtgo_id, 
-                mtgo_foil_id, tcgplayer_id, tcgplayer_etched_id, cardmarket_id, 
-                digital, collector_number, edhrec_rank, penny_rank, reserved, 
-                game_changer, oversized, promo, reprint, variation, variation_of, 
-                full_art, textless, booster, story_spotlight, content_warning
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, oracle_id, name, layout, mana_cost, cmc, type_line, 
+                oracle_text, power, toughness, defense, loyalty, 
+                flavor_text, flavor_name, hand_modifier, life_modifier, 
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             card_id,
             card.get("oracle_id"),
-            card.get("arena_id"),
-            card.get("resource_id"),
             card.get("name"),
-            card.get("lang"),
-            card.get("released_at"),
-            card.get("uri"),
-            card.get("scryfall_uri"),
             card.get("layout"),
-            card.get("highres_image"),
-            card.get("image_status"),
             card.get("mana_cost"),
             card.get("cmc"),
             card.get("type_line"),
@@ -148,51 +131,10 @@ class DatabaseManager:
             card.get("toughness"),
             card.get("defense"),
             card.get("loyalty"),
-            card.get("rarity"),
-            card.get("artist"),
-            card.get("illustration_id"),
-            card.get("border_color"),
-            card.get("frame"),
-            card.get("security_stamp"),
-            card.get("card_back_id"),
-            card.get("set_id"),
-            card.get("set"),
-            card.get("set_name"),
-            card.get("set_type"),
-            card.get("set_uri"),
-            card.get("set_search_uri"),
-            card.get("scryfall_set_uri"),
-            card.get("rulings_uri"),
-            card.get("prints_search_uri"),
-            card.get("watermark"),
             card.get("flavor_text"),
             card.get("flavor_name"),
-            card.get("printed_name"),
-            card.get("printed_text"),
-            card.get("printed_type_line"),
             card.get("hand_modifier"),
-            card.get("life_modifier"),
-            card.get("mtgo_id"),
-            card.get("mtgo_foil_id"),
-            card.get("tcgplayer_id"),
-            card.get("tcgplayer_etched_id"),
-            card.get("cardmarket_id"),
-            card.get("digital"),
-            card.get("collector_number"),
-            card.get("edhrec_rank"),
-            card.get("penny_rank"),
-            card.get("reserved"),
-            card.get("game_changer"),
-            card.get("oversized"),
-            card.get("promo"),
-            card.get("reprint"),
-            card.get("variation"),
-            card.get("variation_of"),
-            card.get("full_art"),
-            card.get("textless"),
-            card.get("booster"),
-            card.get("story_spotlight"),
-            card.get("content_warning")
+            card.get("life_modifier")
         ))
                 
         # Insert related data into junction tables
@@ -200,143 +142,27 @@ class DatabaseManager:
             for face in card["card_faces"]:
                 self.cursor.execute(f"""
                     INSERT {handle_exist_clause}INTO card_faces (
-                        card_id, name, mana_cost, artist, artist_id, cmc, flavor_text, 
-                        defense, power, toughness, loyalty, illustration_id, layout, 
-                        oracle_id, oracle_text, printed_name, printed_text, 
-                        printed_type_line, type_line, watermark
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        card_id, name, mana_cost, cmc, flavor_text, 
+                        defense, power, toughness, loyalty, layout, 
+                        oracle_id, oracle_text, type_line
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     card_id,
                     face.get("name"),
                     face.get("mana_cost"),
-                    face.get("artist"),
-                    face.get("artist_id"),
                     face.get("cmc"),
                     face.get("flavor_text"),
                     face.get("defense"),
                     face.get("power"),
                     face.get("toughness"),
                     face.get("loyalty"),
-                    face.get("illustration_id"),
                     face.get("layout"),
                     face.get("oracle_id"),
                     face.get("oracle_text"),
-                    face.get("printed_name"),
-                    face.get("printed_text"),
-                    face.get("printed_type_line"),
-                    face.get("type_line"),
-                    face.get("watermark")
+                    face.get("type_line")
                 ))
-        
-        if "colors" in card:
-            for color in card["colors"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_colors (card_id, color) 
-                                        VALUES (?, ?)""", (card_id, color))
-        
-        if "color_identities" in card:
-            for color in card["color_identities"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_color_identities (card_id, color) 
-                                        VALUES (?, ?)""", (card_id, color))
-        
-        if "color_indicators" in card:
-            for color in card["color_indicators"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_color_indicators (card_id, color) 
-                                        VALUES (?, ?)""", (card_id, color))
         
         if "image_uris" in card:
             for type, uri in card["image_uris"].items():
                 self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_image_uris (card_id, type, uri) 
                                         VALUES (?, ?, ?)""", (card_id, type, uri))
-        
-        if "artist_ids" in card:
-            for artist_id in card["artist_ids"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_artist_ids (card_id, artist_id) 
-                                        VALUES (?, ?)""", (card_id, artist_id))
-        
-        if "frame_effects" in card:
-            for frame_effect in card["frame_effects"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_frame_effects (card_id, frame_effect) 
-                                        VALUES (?, ?)""", (card_id, frame_effect))
-        
-        if "finishes" in card:
-            for finish in card["finishes"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_finishes (card_id, finish) 
-                                        VALUES (?, ?)""", (card_id, finish))
-        
-        if "produced_mana" in card:
-            for color in card["produced_mana"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_produced_mana (card_id, color) 
-                                        VALUES (?, ?)""", (card_id, color))
-        
-        if "legalities" in card:
-            for format, status in card["legalities"].items():
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_legalities (card_id, format, status) 
-                                        VALUES (?, ?, ?)""", (card_id, format, status))
-        
-        if "games" in card:
-            for game in card["games"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_games (card_id, game) 
-                                        VALUES (?, ?)""", (card_id, game))
-        
-        if "multiverse_ids" in card:
-            for multiverse_id in card["multiverse_ids"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_multiverse_ids (card_id, multiverse_id) 
-                                        VALUES (?, ?)""", (card_id, multiverse_id))
-        
-        if "keywords" in card:
-            for keyword in card["keywords"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_keywords (card_id, keyword) 
-                                        VALUES (?, ?)""", (card_id, keyword))
-        
-        if "all_parts" in card:
-            for part in card["all_parts"]:
-                self.cursor.execute(f"""
-                    INSERT {handle_exist_clause}INTO card_all_parts (
-                        card_id, component, name, type_line, uri
-                    ) VALUES (?, ?, ?, ?, ?)
-                """, (
-                        card_id, 
-                        part.get("component"), 
-                        part.get("name"), 
-                        part.get("type_line"), 
-                        part.get("uri")
-                ))
-        
-        if "prices" in card:
-            for type, price in card["prices"].items():
-                if price is not None:
-                    self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_prices (card_id, type, price) 
-                                            VALUES (?, ?, ?)""", (card_id, type, price))
-        
-        if "related_uris" in card:
-            for type, uri in card["related_uris"].items():
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_related_uris (card_id, type, uri) 
-                                        VALUES (?, ?, ?)""", (card_id, type, uri))
-        
-        if "purchase_uris" in card:
-            for type, uri in card["purchase_uris"].items():
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_purchase_uris (card_id, type, uri) 
-                                        VALUES (?, ?, ?)""", (card_id, type, uri))
-        
-        if "previews" in card:
-            preview = card["previews"]
-            self.cursor.execute(f"""
-                INSERT {handle_exist_clause}INTO card_previews (
-                    card_id, source, source_uri, previewed_at
-                ) VALUES (?, ?, ?, ?)
-            """, (
-                card_id,
-                preview.get("source"),
-                preview.get("source_uri"),
-                preview.get("previewed_at")
-            ))
-        
-        if "promo_types" in card:
-            for type in card["promo_types"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_promo_types (card_id, type) 
-                                        VALUES (?, ?)""", (card_id, type))
-        
-        if "attraction_lights" in card:
-            for number in card["attraction_lights"]:
-                self.cursor.execute(f"""INSERT {handle_exist_clause}INTO card_attraction_lights (card_id, number) 
-                                        VALUES (?, ?)""", (card_id, number))
