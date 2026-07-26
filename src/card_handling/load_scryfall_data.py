@@ -58,8 +58,8 @@ def load_scryfall_card_data_chunks(filepath: str = _DATA_FILE_PATH,
                 yield card_data
 
 def _is_card_valid(card_data: dict) -> bool:
-    """Check if a card is valid for saving based on its properties.
-    This is used to filter out special cards that are not relevant for printing 
+    """Check if a card is valid for saving based on its properties.This is used to filter 
+    out non-creature cards, as well as special cards that are not relevant for printing 
     (e.g, art series, playtest cards, un-cards, and other cards not used in normal play).
     
     Args:
@@ -70,12 +70,14 @@ def _is_card_valid(card_data: dict) -> bool:
     """
     if card_data["name"] in ALLOWED_CARDS:
         return True
-    if (# cards not legal in any format
-        "legal" not in card_data["legalities"].values() 
-        # card types not played in any normal format
-        or card_data["layout"] in ["art_series", "scheme", "vanguard", "planar", "double_faced_token"] 
+    if (# only creature cards
+        "Creature" not in card_data["type_line"]
+        # cards not legal in any format
+        or "legal" not in card_data["legalities"].values() 
         # digital cards
         or card_data.get("digital", False) == True
+        # card types not played in any normal format
+        or card_data["layout"] in ["art_series", "scheme", "vanguard", "planar", "double_faced_token"] 
         # un-cards
         or card_data["border_color"] == "silver" 
         or card_data.get("security_stamp") == "acorn"
