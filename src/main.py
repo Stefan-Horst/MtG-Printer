@@ -34,10 +34,40 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
     if not all(image_type in _SUPPORTED_IMAGE_TYPES for image_type in image_download_types):
         print(f"Error: Unsupported image type(s) specified. Supported types are: {_SUPPORTED_IMAGE_TYPES}")
         return False
+    image_type_data = {image_type: [] for image_type in image_download_types}
     
     # Step 1: Download card data from Scryfall API and save to JSON file
+    display.display_loading_screen("[1/4]\nDownloading\ncard data...", size=1)
+    success = _init_scryfall_data()
+    if not success:
+        return False
+
+    # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
+    display.display_loading_screen("[2/4]\nLoading data\ninto db...", size=2)
+    success, image_type_data = _init_db(image_type_data)
+    if not success:
+        return False
+
+    # Step 3: Download card images based on the downloaded card data
+    display.display_loading_screen("[3/4]\nDownloading\ncard images...", size=3)
+    success = _init_card_images(image_type_data)
+    if not success:
+        return False
+
+    # Step 4: Process downloaded images (turn into high-contrast black & white versions)
+    display.display_loading_screen("[4/4]\nProcessing\ncard images...", size=4)
+    success = _init_image_processing(image_download_types)
+    if not success:
+        return False
+    return True
+
+def _init_scryfall_data() -> bool:
+    """Download card data from Scryfall API and save to JSON file. Retrys the download once if it fails.
+    
+    Returns:
+        bool: True if data was successfully downloaded, False otherwise.
+    """
     print("=> Downloading card data from Scryfall...")
-    display.display_loading_screen("[1/4] Downloading card data...", size=1)
     success = download_scryfall_data()
     if not success:
         print("Failed to download card data from Scryfall. Trying again...")
@@ -45,18 +75,25 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
         if not success:
             print("Failed to download card data from Scryfall again.\nExiting.")
             return False
+    return True
 
-    # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
+def _init_db(image_type_data: dict[str, list[tuple[str, str]]]) -> tuple[bool, dict[str, list[tuple[str, str]]]]:
+    """Create a SQLite database and load card data into it. Save image URLs for later downloading.
+    
+    Args:
+        image_type_data: Dictionary mapping image types to currently empty lists of image URLs.
+    
+    Returns:
+        A tuple of the dict and a boolean being True if data was successfully loaded into the database, False otherwise.
+    """
     print("=> Loading card data into database...")
-    display.display_loading_screen("[2/4] Loading data into db...", size=2)
     try:
         create_database(ignore_if_exists=True)
         db = DatabaseManager()
     except Exception as e:
         print(f"Failed to create or open database: {e}.\nExiting.")
-        return False
+        return False, image_type_data
     
-    image_type_data = {image_type: [] for image_type in image_download_types}
     for card_data in load_scryfall_card_data_chunks():
         try:
             db.save_card_data(card_data, commit=False, handle_exist="ignore")
@@ -67,7 +104,7 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
             except Exception as e:
                 print(f"Failed to save card data for {card_data.get('name', 'Unknown')}: {e}.\nExiting.")
                 clear_local_data() # remove card data to avoid inconsistent state on next run
-                return False
+                return False, image_type_data
         for image_type, image_urls in image_type_data.items():
             image_urls.extend(get_card_image_urls(card_data, image_type))
     
@@ -80,12 +117,20 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
         except Exception as e:
             print(f"Failed to commit changes to database: {e}\nExiting.")
             clear_local_data() # remove card data to avoid inconsistent state on next run
-            return False
+            return False, None
     db.close()
+    return True, image_type_data
 
-    # Step 3: Download card images based on the downloaded card data
+def _init_card_images(image_type_data: dict[str, list[tuple[str, str]]]) -> bool:
+    """Download card images from Scryfall for a list of cards.
+    
+    Args:
+        image_type_data: Dictionary mapping image types to lists of image URLs.
+    
+    Returns:
+        bool: True if images were successfully downloaded, False otherwise.
+    """
     print("=> Downloading card images...")
-    display.display_loading_screen("[3/4] Downloading card images...", size=3)
     for image_type, image_urls in image_type_data.items():
         failed_downloads = download_multiple_card_images(image_urls, image_dir=IMAGE_DIR+"/"+image_type, skip_existing=True)
         print(f"Finished downloading {image_type} images. {len(failed_downloads)} failed downloads.")
@@ -101,18 +146,25 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
             print(f"Failed to download {image_type} images for {len(failed_downloads)} cards. Exiting.")
             clear_local_data() # remove card data to avoid inconsistent state on next run
             return False
+    return True
 
-    # Step 4: Process downloaded images (turn into high-contrast black & white versions)
+def _init_image_processing(image_download_types: list[str]) -> bool:
+    """Process downloaded images (turn into high-contrast black & white versions).
+    
+    Args:
+        image_download_types: List of image types to process.
+    
+    Returns:
+        bool: True if images were successfully processed, False otherwise.
+    """
     print("=> Processing card images...")
-    display.display_loading_screen("[4/4] Processing card images...", size=4)
-    for image_type, image_urls in image_type_data.items():
+    for image_type in image_download_types:
         try:
             process_all_images(printer.device_width, IMAGE_DIR+"/"+image_type, PRINTER_IMAGE_DIR+"/"+image_type, skip_existing=True)
         except Exception as e:
             print(f"Failed to process {image_type} images: {e}\nExiting.")
             clear_local_data() # remove card data to avoid inconsistent state on next run
             return False
-    
     return True
 
 
