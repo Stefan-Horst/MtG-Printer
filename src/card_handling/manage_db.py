@@ -115,28 +115,30 @@ class DatabaseManager:
             INSERT {handle_exist_clause}INTO cards (
                 id, oracle_id, name, layout, mana_cost, cmc, type_line, 
                 oracle_text, power, toughness, defense, loyalty, 
-                flavor_text, flavor_name, hand_modifier, life_modifier, 
+                flavor_text, flavor_name, hand_modifier, life_modifier
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, [(
-                card.get("id"),
-                card.get("oracle_id"),
-                card.get("name"),
-                card.get("layout"),
-                card.get("mana_cost"),
-                card.get("cmc"),
-                card.get("type_line"),
-                card.get("oracle_text"),
-                card.get("power"),
-                card.get("toughness"),
-                card.get("defense"),
-                card.get("loyalty"),
-                card.get("flavor_text"),
-                card.get("flavor_name"),
-                card.get("hand_modifier"),
-                card.get("life_modifier")
-            ) for card in cards]
-        )
-                
+        """, [
+                (
+                    card.get("id"),
+                    card.get("oracle_id"),
+                    card.get("name"),
+                    card.get("layout"),
+                    card.get("mana_cost"),
+                    card.get("cmc"),
+                    card.get("type_line"),
+                    card.get("oracle_text"),
+                    card.get("power"),
+                    card.get("toughness"),
+                    card.get("defense"),
+                    card.get("loyalty"),
+                    card.get("flavor_text"),
+                    card.get("flavor_name"),
+                    card.get("hand_modifier"),
+                    card.get("life_modifier")
+                )
+            for card in cards
+        ])
+        
         # Insert related data into junction tables
         self.cursor.executemany(f"""
             INSERT {handle_exist_clause}INTO card_faces (
@@ -145,30 +147,30 @@ class DatabaseManager:
                 oracle_id, oracle_text, type_line
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, [
-                [
-                    (
-                        card.get("id"),
-                        face.get("name"),
-                        face.get("mana_cost"),
-                        face.get("cmc"),
-                        face.get("flavor_text"),
-                        face.get("defense"),
-                        face.get("power"),
-                        face.get("toughness"),
-                        face.get("loyalty"),
-                        face.get("layout"),
-                        face.get("oracle_id"),
-                        face.get("oracle_text"),
-                        face.get("type_line")
-                    ) for face in card["card_faces"]
-                ] for card in cards
+                (
+                    card.get("id"),
+                    face.get("name"),
+                    face.get("mana_cost"),
+                    face.get("cmc"),
+                    face.get("flavor_text"),
+                    face.get("defense"),
+                    face.get("power"),
+                    face.get("toughness"),
+                    face.get("loyalty"),
+                    face.get("layout"),
+                    face.get("oracle_id"),
+                    face.get("oracle_text"),
+                    face.get("type_line")
+                )
+                for card in cards if card.get("card_faces") is not None
+                for face in card["card_faces"]
         ])
         
         self.cursor.executemany(f"""
             INSERT {handle_exist_clause}INTO card_image_uris (card_id, type, uri) 
             VALUES (?, ?, ?)""", [
-                [
-                    (card.get("id"), card_type, uri) for card_type, uri in card["image_uris"].items()
-                ] for card in cards
+                (card.get("id"), card_type, uri)
+                for card in cards if card.get("image_uris") is not None
+                for card_type, uri in card["image_uris"].items()
             ]
         )

@@ -74,7 +74,7 @@ def get_card_data(card_name: str, db: DatabaseManager, relevant_face: str = None
     if not result:
         raise ValueError("Card not found in database")
     card_data = result[0]
-    if card_data.get("name", None) == None: # make sure result contains card data
+    if card_data.get("name", None) is None: # make sure result contains card data
         raise ValueError("Result does not contain card data")
     return _get_standardized_card_dict(card_data, relevant_face)
 
