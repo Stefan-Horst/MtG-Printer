@@ -15,7 +15,7 @@ from card_handling.queries import get_random_creature_card, get_card_data, get_s
 from util import init_scryfall_data, init_db, init_card_images, init_image_processing, has_internet_connection
 
 
-DEFAULT_PRINT_FULL = True # print full card images by default; False for printing text with art crop; ignored if only one image type is available
+DEFAULT_PRINT_FULL = False # print text with art crop by default; False for printing full card images; ignored if only one image type is available
 
 
 def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
@@ -209,6 +209,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
         return "restart"
     return "exit" # just exit the program
 
+
 def cleanup() -> None:
     """Clean up resources on program exit."""
     try: db.close()
@@ -258,7 +259,7 @@ if __name__ == "__main__":
     
     if not args.skipinit:
         display.display_text("Startup successful.\nBeginning initialization.")
-        time.sleep(1) # wait a moment to give user chance to press button for skipping initialization steps if desired
+        time.sleep(2) # wait a moment to give user chance to press button for skipping initialization steps if desired
     
     init_success = True # only false if initialization steps were attempted and then failed
     if args.skipinit or button_handler.is_pressed():
