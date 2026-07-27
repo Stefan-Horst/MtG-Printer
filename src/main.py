@@ -69,7 +69,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
         Literal["shutdown", "restart", "exit"]: The exit mode indicating the requested action.
     """
     print("=> Entering main loop. Waiting for button events...")
-    display.display_text("~ Momir Vig ~\nReady for input!")
+    display.display_text("~ Momir Vig ~\nLet's begin!", "title")
     rotary_min_value, rotary_max_value = get_mana_cost_range(db)
     skip_values = get_nonexistent_creature_mana_costs(db)
     rotary_value = 0
@@ -95,14 +95,14 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 else:
                     display.display_text("No card printed yet.\nPress the button to print a card.")
                     time.sleep(2)
-                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
+                display.display_mana_value(rotary_value) # return to default display
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
                 # SWITCH TO PRINT TEXT MODE
                 if IMAGE_TYPE_FULL not in enabled_image_types or IMAGE_TYPE_ART not in enabled_image_types:
                     display.display_text("Only one image type is enabled.\nCannot switch print modes.")
                     time.sleep(2)
-                    display.display_text(f"Mana Cost: {rotary_value}") # return to default display
+                    display.display_mana_value(rotary_value) # return to default display
                     continue
                 full_print_mode = not full_print_mode
                 current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
@@ -120,7 +120,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True) # turn button LED back on after loading screen
-                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
+                display.display_mana_value(rotary_value) # return to default display
                 button_handler.reset()
             elif button_state == ButtonState.LONG_PRESS:
                 # SHUTDOWN
@@ -139,7 +139,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     rotary_value += 1
                 if rotary_value > rotary_max_value:
                     rotary_value = rotary_min_value
-                display.display_text(f"Mana Cost: {rotary_value}")
+                display.display_mana_value(rotary_value)
                 rotary_encoder_handler.reset_rotary()
             elif rotary_state == RotaryState.LEFT:
                 # DECREASE VALUE
@@ -148,7 +148,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     rotary_value -= 1
                 if rotary_value < rotary_min_value:
                     rotary_value = rotary_max_value
-                display.display_text(f"Mana Cost: {rotary_value}")
+                display.display_mana_value(rotary_value)
                 rotary_encoder_handler.reset_rotary()
             
             # handle rotary encoder push button: single click to confirm selected value, 
@@ -158,7 +158,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 # PRINT RANDOM CARD
                 gpio.toggle_led_blink(True)
                 size = max(1, rotary_value // 2) # thicker loading bars for higher mana costs
-                display.display_loading_screen(f"Printing a {rotary_value} cost creature!", size=size)
+                display.display_loading_screen(f"Printing a {rotary_value}\ncost creature!", size=size)
                 current_card, current_face = get_random_creature_card(rotary_value, db)
                 current_card_info = get_card_data(current_card, db, current_face)
                 current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
@@ -170,12 +170,12 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
-                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
+                display.display_mana_value(rotary_value) # return to default display
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.DOUBLE_CLICK:
                 # PRINT MOMIR AVATAR CARD
                 gpio.toggle_led_blink(True)
-                display.display_loading_screen("Printing Momir Avatar!")
+                display.display_loading_screen("Printing\nMomir Avatar!")
                 current_card = MOMIR_AVATAR_NAME
                 current_face = None
                 current_card_info = get_card_data(current_card, db, current_face)
@@ -188,18 +188,18 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 display.stop_loading_screen()
                 gpio.toggle_led_blink(False)
                 gpio.toggle_button_led(True)
-                display.display_text(f"Mana Cost: {rotary_value}") # return to default display
+                display.display_mana_value(rotary_value) # return to default display
                 rotary_encoder_handler.reset()
             elif rotary_button_state == ButtonState.LONG_PRESS:
                 # RESTART PROGRAM
                 display.display_text("Restarting program...")
-                print("=> Restart requested. Exiting...")
+                print("=> Restart requested. Restarting...\n")
                 time.sleep(1)
                 return "restart"
     except KeyboardInterrupt:
-        print("\n=> Keyboard interrupt received. Exiting...")
+        print("=> Keyboard interrupt received. Exiting...")
     except Exception as e:
-        print(f"\n=> An error occurred: {e}\nRestarting...")
+        print(f"~> An error occurred: {e}\nRestarting...\n")
         display.display_text("An error occurred.\nRestarting...")
         time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting
         return "restart"
