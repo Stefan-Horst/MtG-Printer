@@ -53,6 +53,7 @@ class PrinterManager:
         """
         self.dummy_printer.image(image, impl="bitImageRaster", center=True)
         self.printer._raw(self.dummy_printer.output)
+        self.dummy_printer.clear()
         if feed_after_image:
             time.sleep(2) # wait for the printer buffer to empty
             self.printer.print_and_feed(CUT_MARGIN)
