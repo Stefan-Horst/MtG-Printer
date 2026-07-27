@@ -139,8 +139,8 @@ def get_card_image_for_mode(card_name: str, mode: str) -> Image.Image:
     """
     img_name = make_filename_valid(card_name)
     if mode == "full":
-        return Image.open(f"{_PRINTER_IMAGE_DIR_FULL}/{img_name}")
+        return Image.open(f"{_PRINTER_IMAGE_DIR_FULL}/{img_name}{IMAGE_EXTENSION}")
     elif mode == "art":
-        return Image.open(f"{_PRINTER_IMAGE_DIR_ART}/{img_name}")
+        return Image.open(f"{_PRINTER_IMAGE_DIR_ART}/{img_name}{IMAGE_EXTENSION}")
     else:
         raise ValueError("Invalid mode. Must be 'full' or 'art'.")
