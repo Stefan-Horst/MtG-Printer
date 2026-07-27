@@ -24,7 +24,7 @@ def get_random_creature_card(mana_cost: int,
         tuple: A tuple containing the card name and face name (None if only one face exists).
     """
     result = db.execute_query(
-        "SELECT name, type_line, layout FROM cards WHERE type_line LIKE %Creature% AND cmc = ?", 
+        "SELECT name, type_line, layout FROM cards WHERE type_line LIKE '%Creature%' AND cmc = ?", 
         (mana_cost,)
     )
     if not result:
@@ -73,7 +73,8 @@ def get_card_data(card_name: str, db: DatabaseManager, relevant_face: str = None
     )
     if not result:
         raise ValueError("Card not found in database")
-    card_data = result[0]
+    column_names = [col[0] for col in db.cursor.description]
+    card_data = dict(zip(column_names, result[0]))
     if card_data.get("name", None) is None: # make sure result contains card data
         raise ValueError("Result does not contain card data")
     return _get_standardized_card_dict(card_data, relevant_face)
@@ -87,7 +88,7 @@ def get_mana_cost_range(db: DatabaseManager) -> tuple[int, int]:
         tuple: A tuple containing the minimum and maximum mana cost values.
     """
     result = db.execute_query(
-        "SELECT MIN(cmc), MAX(cmc) FROM cards WHERE type_line LIKE %Creature%"
+        "SELECT MIN(cmc), MAX(cmc) FROM cards WHERE type_line LIKE '%Creature%'"
     )
     return result[0][0], result[0][1]
 
@@ -101,10 +102,10 @@ def get_nonexistent_creature_mana_costs(db: DatabaseManager) -> list[int]:
         list: A list of the creature mana costs that do not exist in the database.
     """
     result = db.execute_query(
-        "SELECT DISTINCT cmc FROM cards WHERE type_line LIKE %Creature%"
+        "SELECT DISTINCT cmc FROM cards WHERE type_line LIKE '%Creature%'"
     )
     mana_costs = [r[0] for r in result]
-    return [cost for cost in range(mana_costs[-1]+1) if cost not in mana_costs]
+    return [cost for cost in range(int(mana_costs[-1])+1) if cost not in mana_costs]
 
 def _get_standardized_card_dict(card_info: dict, relevant_face: str = None) -> dict:
     """Get a dictionary containing the standardized card information, meaning all relevant keys exist. 
