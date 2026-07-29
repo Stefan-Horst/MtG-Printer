@@ -275,7 +275,10 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
     image_dir.mkdir(parents=True, exist_ok=True)
     if skip_existing:
         existing_images = {file.stem for file in image_dir.glob("*.jpg")}
-        images_data = [(name, url) for name, url in images_data if name not in existing_images]
+        images_data = [
+            (name, url) for name, url in images_data 
+            if make_filename_valid(name) not in existing_images
+        ]
         print(f"Skipping {len(existing_images)} existing images. Downloading {len(images_data)} new images...")
     failed_downloads = []
     conn = aiohttp.TCPConnector(limit_per_host=MAX_CONCURRENT_DOWNLOADS)
