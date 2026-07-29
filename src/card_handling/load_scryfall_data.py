@@ -1,3 +1,4 @@
+import os
 import json
 import gzip
 import shutil
@@ -311,16 +312,23 @@ async def _download_card_image(name: str,
     Returns:
         A tuple of (name, image_url) if the download failed, or (None, None) if it succeeded
     """
+    filename = make_filename_valid(name)
+    output_file = Path(image_dir) / f"{filename}.jpg"
+    tmp_file = output_file.with_name(output_file.name + ".tmp")
     try:
         async with session.get(image_url, headers=SCRYFALL_HEADERS, timeout=TIMEOUT, raise_for_status=True) as response:
             content = await response.read()
+        if not content:
+            raise ValueError("empty response body")
+        image = Image.open(BytesIO(content))
+        image.load()
+        image.save(tmp_file)
+        os.replace(tmp_file, output_file)
     except Exception as e:
-        if len(str(e)) > 0:
-            print(f"Failed to download image for {name}: {str(e)}")
+        tmp_file.unlink(missing_ok=True)
+        if str(e):
+            print(f"Failed to download image for {name}: {e}")
         return (name, image_url)
-    name = make_filename_valid(name)
-    image = Image.open(BytesIO(content))
-    image.save(f"{image_dir}/{name}.jpg")
     return (None, None)
 
 def make_filename_valid(name: str) -> str:
