@@ -16,7 +16,7 @@ _PAD = 6 # vertical gap between stacked boxes
 _BOX_PAD = 5 # padding between a box outline and its text
 _OUTLINE = 2 # thickness of the box outlines
 _LINE_SPACING = 2 # extra spacing between wrapped oracle text lines
-_ART_MAX_FRAC = 0.5 # max fraction of the flexible space the art window may take when there is text
+_ART_MAX_FRAC = 0.6 # max fraction of the flexible space the art window may take when there is text
 _ART_MIN_H = 60 # minimum height of the art window
 _TEXT_MIN_H = 24 # minimum height of the oracle text box
 # Font size bounds (max, min) for each element; text is scaled within these to fit its container

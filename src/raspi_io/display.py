@@ -27,7 +27,7 @@ class DisplayManager:
         self.toggle_loading_animation_thread = None
         self.toggle_loading_animation_event = Event()
 
-    def display_text(self, text: str, mode: Literal["title", "detail"] = "title") -> None:
+    def display_text(self, text: str, mode: Literal["title", "detail"] = "detail") -> None:
         """Display text on the OLED display. Uses automatic line breaks and centers the text on the display.
         
         Args:
@@ -35,7 +35,7 @@ class DisplayManager:
             mode: Font mode to use for displaying the text ("title" or "detail")
         """
         font = self.title_font if mode == "title" else self.detail_font
-        text_lines = self._wrap_text(text, font, self.display.width)
+        text_lines = self._wrap_text(text, font, self.display.width, paragraph_gap=False)
         ascent, descent = font.getmetrics()
         line_height = ascent + descent
         start_y = (self.display.height - line_height * len(text_lines)) // 2
@@ -44,16 +44,16 @@ class DisplayManager:
                 self._draw_rich_text(draw, (self.display.width // 2, start_y + num * line_height),
                                      line, font, fill="white", anchor="ma")
 
-    def display_mana_value(self, mana_cost: int) -> None:
-        """Display a mana cost value on the OLED display with custom font size and formatting.
+    def display_mana_value(self, mana_value: int) -> None:
+        """Display a mana value on the OLED display with custom font size and formatting.
         
         Args:
             mana_cost: Integer mana cost to display
         """
-        line1 = "Mana Cost"
+        line1 = "Mana Value"
         x1 = (self.display.width - self.title_font.getlength(line1)) // 2
         y1 = (self.display.height - self.title_font.getbbox(line1)[3]) // 2 - self.title_font.getbbox(line1)[3] - 5
-        line2 = str(mana_cost)
+        line2 = str(mana_value)
         title_font_large = ImageFont.truetype(TITLE_FONT_PATH, 40)
         x2 = (self.display.width - title_font_large.getlength(line2)) // 2
         y2 = (self.display.height - title_font_large.getbbox(line2)[3]) // 2 + title_font_large.getbbox(line1)[3] - 30

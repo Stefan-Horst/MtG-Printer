@@ -5,7 +5,7 @@ from collections.abc import Callable
 
 
 DOUBLE_CLICK_MAX_INTERVAL = 0.3 # seconds
-LONG_PRESS_THRESHOLD = 3 # seconds
+LONG_PRESS_THRESHOLD = 2 # seconds
 
 
 class ButtonState(Enum):
