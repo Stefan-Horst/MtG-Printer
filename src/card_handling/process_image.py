@@ -1,3 +1,4 @@
+import os
 import asyncio
 from contextlib import nullcontext
 from io import BytesIO
@@ -104,6 +105,14 @@ async def process_image(file: str,
     Returns:
         The processed image if `return_image` is True, otherwise None
     """
+    async def _save_image(tmp_file: Path, output_file: Path, data: bytes) -> None:
+        """Save the image data to the output file using an intermediate temporary file."""
+        async with aiofile.async_open(tmp_file, "wb") as f:
+            await f.write(data)
+        if tmp_file.stat().st_size != len(data):
+            raise IOError(f"short write: {tmp_file.stat().st_size}/{len(data)} bytes")
+        os.replace(tmp_file, output_file)
+    
     sem = sem or nullcontext() # without sempahore use placeholder context manager that does nothing
     async with sem:
         input_file = Path(image_dir) / file
@@ -127,15 +136,15 @@ async def process_image(file: str,
             output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
             buffer = BytesIO()
             bw.save(buffer, format=IMAGE_EXTENSION[1:])
+            data = buffer.getvalue()
+            tmp_file = output_file.with_suffix(output_file.suffix + ".tmp")
             try:
-                async with aiofile.async_open(output_file, "wb") as f:
-                    await f.write(buffer.getbuffer())
+                _save_image(tmp_file, output_file, data)
             except Exception:
-                Path(output_file).unlink(missing_ok=True)
+                Path(tmp_file).unlink(missing_ok=True)
                 print(f"Failed to save image for {filename}. Trying again...")
                 try:
-                    async with aiofile.async_open(output_file, "wb") as f:
-                        await f.write(buffer.getbuffer())
+                    _save_image(tmp_file, output_file, data)
                 except Exception as e:
                     Path(output_file).unlink(missing_ok=True)
                     print(f"~> Failed to save image for {filename}: {e}. Skipping...")
