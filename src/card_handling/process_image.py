@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import nullcontext
 from io import BytesIO
 from pathlib import Path
 from PIL import Image, ImageOps
@@ -52,12 +53,17 @@ async def _process_all_images(device_width: int,
     input_path = Path(image_dir)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    image_files = [image_file for image_file in input_path.iterdir()
-                   if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
+    image_files = input_path.iterdir()
     if skip_existing:
         existing_images = {file.stem for file in output_path.glob("*" + IMAGE_EXTENSION)}
         image_files = [file for file in image_files if file.stem not in existing_images]
         print(f"Skipping {len(existing_images)} existing images. Processing {len(image_files)} new images...")
+    
+    def _get_corrupt_files(chunk: list[Path], output_dir: Path) -> list[Path]:
+        """Check if the output files in a chunk are corrupted. Returns a list of corrupted files."""
+        out = lambda f: output_dir / f"{f.stem}{IMAGE_EXTENSION}"
+        return [f for f in chunk if not out(f).exists() or out(f).stat().st_size == 0]
+    
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
     batch_amount = (len(image_files) + batch_size - 1) // batch_size
     for i in range(0, len(image_files), batch_size):
@@ -66,17 +72,16 @@ async def _process_all_images(device_width: int,
         tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
                  for image_file in chunk]
         await asyncio.gather(*tasks)
-        fails = [file for file in chunk if Path(file).stat().st_size == 0]
+        fails = _get_corrupt_files(chunk, output_dir)
         if fails:
             print(f"Failed to process {len(fails)} images. Trying again...")
-            tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
-                     for image_file in fails]
+            tasks = [process_image(f.name, device_width, image_dir, output_dir, sem=sem) for f in fails]
             await asyncio.gather(*tasks)
-            fails = [file for file in chunk if Path(file).stat().st_size == 0]
+            fails = _get_corrupt_files(chunk, output_dir)
             if fails:
                 print(f"~> Failed to process {len(fails)} images again. Skipping...")
-                for fail in fails: # delete corrupted images
-                    Path(fail).unlink()
+                for f in fails: # delete corrupted images
+                    (Path(output_dir) / f"{f.stem}{IMAGE_EXTENSION}").unlink(missing_ok=True)
 
 async def process_image(file: str, 
                         device_width: int,
