@@ -55,7 +55,7 @@ async def _process_all_images(device_width: int,
     image_files = [image_file for image_file in input_path.iterdir()
                    if image_file.is_file() and image_file.suffix.lower() in [".jpg", ".jpeg", ".png"]]
     if skip_existing:
-        existing_images = {file.stem for file in input_path.glob("*.jpg")}
+        existing_images = {file.stem for file in output_path.glob("*" + IMAGE_EXTENSION)}
         image_files = [file for file in image_files if file.stem not in existing_images]
         print(f"Skipping {len(existing_images)} existing images. Processing {len(image_files)} new images...")
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
@@ -66,6 +66,17 @@ async def _process_all_images(device_width: int,
         tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
                  for image_file in chunk]
         await asyncio.gather(*tasks)
+        fails = [file for file in chunk if Path(file).stat().st_size == 0]
+        if fails:
+            print(f"Failed to process {len(fails)} images. Trying again...")
+            tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
+                     for image_file in fails]
+            await asyncio.gather(*tasks)
+            fails = [file for file in chunk if Path(file).stat().st_size == 0]
+            if fails:
+                print(f"~> Failed to process {len(fails)} images again. Skipping...")
+                for fail in fails: # delete corrupted images
+                    Path(fail).unlink()
 
 async def process_image(file: str, 
                         device_width: int,
@@ -122,7 +133,7 @@ async def process_image(file: str,
                         await f.write(buffer.getbuffer())
                 except Exception as e:
                     Path(output_file).unlink(missing_ok=True)
-                    print(f"Failed to save image for {filename}: {e}")
+                    print(f"~> Failed to save image for {filename}: {e}. Skipping...")
 
         if return_image:
             return bw
