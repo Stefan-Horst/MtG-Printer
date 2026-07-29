@@ -94,18 +94,19 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     gpio.toggle_button_led(True) # turn button LED back on after loading screen
                 else:
                     display.display_text("No card printed yet.\nPress the button to print a card.")
-                    time.sleep(2)
+                    time.sleep(3)
                 display.display_mana_value(rotary_value) # return to default display
                 button_handler.reset()
             elif button_state == ButtonState.DOUBLE_CLICK:
                 # SWITCH TO PRINT TEXT MODE
                 if IMAGE_TYPE_FULL not in enabled_image_types or IMAGE_TYPE_ART not in enabled_image_types:
                     display.display_text("Only one image type is enabled.\nCannot switch print modes.")
-                    time.sleep(2)
+                    time.sleep(3)
                     display.display_mana_value(rotary_value) # return to default display
                     continue
                 full_print_mode = not full_print_mode
-                current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
+                if current_card:
+                    current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if not new_card_since_mode_switch: # don't print card again if switching modes back to the same mode as before
                     continue
                 gpio.toggle_led_blink(True) # make LED blink while busy
@@ -126,7 +127,7 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 # SHUTDOWN
                 display.display_text("Shutting down...")
                 print("=> Shutdown requested. Exiting...")
-                time.sleep(1)
+                time.sleep(2)
                 return "shutdown" # exit program and trigger shutdown
             
             # handle rotary encoder rotations: right rotation increases value, left rotation decreases it;
@@ -194,15 +195,15 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                 # RESTART PROGRAM
                 display.display_text("Restarting program...")
                 print("=> Restart requested. Restarting...\n")
-                time.sleep(1)
-                return "restart"
+                time.sleep(2)
+                return "restart skipinit"
     except KeyboardInterrupt:
         print("=> Keyboard interrupt received. Exiting...")
     except Exception as e:
         print(f"~> An error occurred: {e}\nRestarting...\n")
         display.display_text("An error occurred.\nRestarting...")
         time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting
-        return "restart"
+        return "restart skipinit"
     return "exit" # just exit the program
 
 
@@ -269,15 +270,18 @@ if __name__ == "__main__":
     # Restart the program to try initialization again on next run or shutdown if button pressed
     if not init_success: 
         gpio.toggle_led_blink(True, interval=0.2) # blink LED rapidly to indicate initialization failure
+        print("=> Initialization failed")
+        display.display_text("Initialization failed")
+        time.sleep(2)
         if button_handler.is_pressed():
-            print("=> Initialization failed. Manually shutting down...")
-            display.display_text("Init failed.\nShutting down...")
+            print("Manually shutting down...")
+            display.display_text("Shutting down...")
             exit_mode = "shutdown"
         else:
-            print("=> Initialization failed. Restarting...")
-            display.display_text("Init failed.\nRestarting...")
+            print("Restarting...")
+            display.display_text("Restarting...")
             exit_mode = "restart"
-        time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting or shutting down
+        time.sleep(2) # wait a moment to allow the user to see the message on the display before restarting or shutting down
     
     ### MAIN LOOP
     
@@ -292,6 +296,8 @@ if __name__ == "__main__":
     if exit_mode == "shutdown": # trigger system shutdown
         subprocess.run(["shutdown"])
     elif exit_mode == "restart": # restart the program
+        os.execv(sys.executable, ["python3"] + sys.argv)
+    elif exit_mode == "restart skipinit": # restart the program without initialization
         os.execv(sys.executable, ["python3"] + sys.argv + ["-s"])
     else: # key interrupt etc
         sys.exit(0)
