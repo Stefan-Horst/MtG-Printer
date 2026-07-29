@@ -15,7 +15,6 @@ dependencies = [
     "aiohttp[speedups]",
     "aiofile",
     "pillow",
-    "splitstream",
 ]
 
 [project.optional-dependencies]

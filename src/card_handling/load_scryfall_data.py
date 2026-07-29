@@ -1,4 +1,6 @@
 import json
+import gzip
+import shutil
 import time
 import asyncio
 from pathlib import Path
@@ -6,7 +8,6 @@ from io import BytesIO
 from collections.abc import Generator
 import requests
 import aiohttp
-from splitstream import splitfile
 from PIL import Image
 
 from . import DATA_PATH
@@ -18,7 +19,8 @@ ALLOWED_CARDS = [MOMIR_AVATAR_NAME] # whitelisted cards to download even if they
 IMAGE_DIR = str(DATA_PATH / "card_images/raw")
 DATA_DIR = str(DATA_PATH / "card_data")
 METADATA_FILE = "metadata.json"
-DATA_FILE = "cards.json"
+DATA_FILE_RAW = "cards.jsonl.gz"
+DATA_FILE = "cards.jsonl"
 
 BULK_TYPE = "oracle_cards"
 IMAGE_TYPE_FULL = "border_crop"
@@ -51,9 +53,9 @@ def load_scryfall_card_data_chunks(filepath: str = _DATA_FILE_PATH,
     Returns:
         A generator that yields a dictionary containing the loaded card data for each card in the file
     """
-    with open(filepath, "r") as f:
-        for card in splitfile(f, format="json", startdepth=1):
-            card_data = json.loads(card)
+    with open(filepath, "r", encoding="utf-8") as f:
+        for line in f:
+            card_data = json.loads(line)
             if not exclude_invalid or _is_card_valid(card_data):
                 yield card_data
 
@@ -111,6 +113,7 @@ def download_scryfall_data(api: str = SCRYFALL_API_URL,
     data_path = Path(data_dir)
     data_path.mkdir(parents=True, exist_ok=True)
     data_file = data_path / DATA_FILE
+    raw_data_file = data_path / DATA_FILE_RAW
     metadata_file = data_path / METADATA_FILE
     
     # Get available bulk data info from API
@@ -148,19 +151,22 @@ def download_scryfall_data(api: str = SCRYFALL_API_URL,
         with open(metadata_file, "w") as f:
             json.dump(bulk_data_info, f)
     
-    # Download new card data
+    # Download and extract new card data
     print(f"Downloading card data (version: {current_version})...")
-    download_url = bulk_data_info["download_uri"]
+    download_url = bulk_data_info["jsonl_download_uri"]
     try:
-        _download_data_in_chunks(download_url, data_file, SCRYFALL_HEADERS)
+        _download_data_in_chunks(download_url, raw_data_file, SCRYFALL_HEADERS)
     except Exception:
         print("Failed to download data. Trying again...")
         time.sleep(TIME_BETWEEN_REQUESTS / 1000)
         try:
-            _download_data_in_chunks(download_url, data_file, SCRYFALL_HEADERS)
+            _download_data_in_chunks(download_url, raw_data_file, SCRYFALL_HEADERS)
         except Exception as e:
             print(f"Failed to download data again: {e}")
             return False
+    with gzip.open(raw_data_file, "rb") as f_in:
+        with open(data_file, "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
     return True
 
 def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
@@ -174,7 +180,7 @@ def _download_data_in_chunks(url: str, filepath: str, headers: dict) -> None:
     """
     with requests.get(url, headers=headers, stream=True, timeout=TIMEOUT) as response:
         response.raise_for_status()
-        with open(filepath, 'wb') as f:
+        with open(filepath, "wb") as f:
             for chunk in response.iter_content(chunk_size=CHUNK_SIZE):
                 f.write(chunk)
 
