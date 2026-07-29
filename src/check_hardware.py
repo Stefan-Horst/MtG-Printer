@@ -2,12 +2,13 @@
 # Pressing the rotary button also tests the printer
 
 import time
+from luma.core.render import canvas
 from PIL import Image, ImageDraw, ImageFont
 
 import raspi_io.gpio as gpio
 from raspi_io.buttons import ButtonHandler, ButtonState, RotaryEncoderHandler, RotaryState
 from raspi_io.display import DisplayManager
-from raspi_io.printer import PrinterManager
+from raspi_io.printer import PrinterManager, TITLE_FONT_PATH
 
 
 IDLE_THRESHOLD = 2
@@ -32,7 +33,9 @@ try:
         button_state = button_handler.get_state()
         if button_state == ButtonState.SINGLE_CLICK:
             print("Single click detected")
-            display.display_text("Single click detected")
+            with canvas(display.display) as draw:
+                draw.rectangle(display.display.bounding_box, outline="white", fill="black")
+                draw.text((display.display.width / 2 - 55, display.display.height / 2 - 5), "Single click detected", fill="white")
             button_handler.reset()
             last_event = time.time()
         elif button_state == ButtonState.DOUBLE_CLICK:
@@ -66,7 +69,7 @@ try:
             img = Image.new("L", (printer.device_width, 100), 255)
             draw = ImageDraw.Draw(img)
             draw.rectangle((0, 0, printer.device_width, 100), fill=255, outline=0, width=5)
-            draw.text((printer.device_width / 2 - 130, 25), "Printer works!", fill=0, font=ImageFont.truetype("../fonts/Beleren-Bold.ttf", 40))
+            draw.text((printer.device_width / 2 - 130, 25), "Printer works!", fill=0, font=ImageFont.truetype(TITLE_FONT_PATH, 40))
             printer.print_card_image(img)
             rotary_encoder_handler.reset()
             last_event = time.time()
