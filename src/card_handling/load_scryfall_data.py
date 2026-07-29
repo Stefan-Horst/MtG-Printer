@@ -274,7 +274,7 @@ async def _download_multiple_card_images(images_data: list[tuple[str, str]],
     image_dir = Path(image_dir)
     image_dir.mkdir(parents=True, exist_ok=True)
     if skip_existing:
-        existing_images = {file.stem for file in image_dir.glob("*.jpg")}
+        existing_images = {file.stem for file in image_dir.glob("*.jpg") if file.stat().st_size > 0}
         images_data = [
             (name, url) for name, url in images_data 
             if make_filename_valid(name) not in existing_images

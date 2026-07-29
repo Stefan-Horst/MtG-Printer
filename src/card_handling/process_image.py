@@ -56,7 +56,7 @@ async def _process_all_images(device_width: int,
     output_path.mkdir(parents=True, exist_ok=True)
     image_files = input_path.iterdir()
     if skip_existing:
-        existing_images = {file.stem for file in output_path.glob("*" + IMAGE_EXTENSION)}
+        existing_images = {file.stem for file in output_path.glob("*" + IMAGE_EXTENSION) if file.stat().st_size > 0}
         image_files = [file for file in image_files if file.stem not in existing_images]
         print(f"Skipping {len(existing_images)} existing images. Processing {len(image_files)} new images...")
     
