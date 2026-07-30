@@ -84,9 +84,36 @@ async def _process_all_images(device_width: int,
                 for f in fails: # delete corrupted images
                     (Path(output_dir) / f"{f.stem}{IMAGE_EXTENSION}").unlink(missing_ok=True)
 
-async def process_image(file: str, 
+def _run_processing_pipeline(input_file: Path, device_width: int, encode: bool) -> tuple[Image.Image, bytes | None]:
+    """Run the image processing pipeline (decode, resize, grayscale, contrast, optional encode).
+
+    Args:
+        input_file: path to the source image
+        device_width: width of the printer in pixels
+        encode: whether to also encode the result to PNG bytes (for saving)
+
+    Returns:
+        A tuple of (processed image, encoded PNG bytes, or None if encode is False)
+    """
+    img = Image.open(input_file)
+    # resize to fit the printer
+    ratio = img.size[0] / img.size[1]
+    new_height = int(device_width / ratio)
+    img = img.resize((device_width, new_height))
+    # convert to grayscale
+    gray = img.convert("L")
+    # increase contrast
+    bw = ImageOps.autocontrast(gray, cutoff=5)
+    data = None
+    if encode:
+        buffer = BytesIO()
+        bw.save(buffer, format=IMAGE_EXTENSION[1:])
+        data = buffer.getvalue()
+    return bw, data
+
+async def process_image(file: str,
                         device_width: int,
-                        image_dir: str = _IMAGE_DIR_FULL, 
+                        image_dir: str = _IMAGE_DIR_FULL,
                         output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
                         return_image: bool = False,
                         sem: asyncio.Semaphore = None) -> Image.Image | None:
@@ -118,15 +145,9 @@ async def process_image(file: str,
         input_file = Path(image_dir) / file
         filename = input_file.stem
         try:
-            img = Image.open(input_file)
-            # resize to fit the printer
-            ratio = img.size[0] / img.size[1]
-            new_height = int(device_width / ratio)
-            img = img.resize((device_width, new_height))
-            # convert to grayscale
-            gray = img.convert("L")
-            # increase contrast
-            bw = ImageOps.autocontrast(gray, cutoff=5)
+            bw, data = await asyncio.to_thread(
+                _run_processing_pipeline, input_file, device_width, bool(output_dir)
+            )
         except Exception as e:
             print(f"Failed to process image for {filename}: {e}")
             return None
@@ -134,9 +155,6 @@ async def process_image(file: str,
         if output_dir:
             output_path = Path(output_dir)
             output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
-            buffer = BytesIO()
-            bw.save(buffer, format=IMAGE_EXTENSION[1:])
-            data = buffer.getvalue()
             tmp_file = output_file.with_suffix(output_file.suffix + ".tmp")
             try:
                 await _save_image(tmp_file, output_file, data)
