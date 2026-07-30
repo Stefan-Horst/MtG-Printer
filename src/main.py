@@ -315,8 +315,8 @@ if __name__ == "__main__":
     if exit_mode == "shutdown": # trigger system shutdown
         subprocess.run(["shutdown"])
     elif exit_mode == "restart": # restart the program
-        os.execv(sys.executable, ["python3"] + sys.argv)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
     elif exit_mode == "restart skipinit": # restart the program without initialization
-        os.execv(sys.executable, ["python3"] + sys.argv + ["-s"])
+        os.execv(sys.executable, [sys.executable] + sys.argv + ["-s"])
     else: # key interrupt etc
         sys.exit(0)
