@@ -7,18 +7,21 @@ from escpos.printer import Serial, Dummy
 from . import TITLE_FONT_PATH, DETAIL_FONT_PATH, SYMBOL_FONT_PATH, SYMBOL_CODES
 
 
-CUT_MARGIN = 2 # margin to leave at the bottom of the image for cutting
+CUT_MARGIN = 3 # margin to leave at the bottom of the image for cutting
 
-# Proportions of a real Magic card (63mm x 88mm) used to cap the rendered card length
-CARD_ASPECT_W, CARD_ASPECT_H = 63, 88
+# The rendered card image always fills the printer width; its length is adaptive rather than tied to
+# real-card proportions. The art fills the width at its natural height (capped at _MAX_ART_HEIGHT) and
+# the oracle text is shrunk to keep the total near DESIRED_HEIGHT (the height a card comes to with a
+# full MAX_ART_HEIGHT-tall art), but the image may grow taller when the text does not fit even at the
+# smallest font size.
+DESIRED_HEIGHT = 620 # desired total image height in pixels (matches a card with a _MAX_ART_HEIGHT art)
 # Layout constants (in pixels) for the rendered card image
 _PAD = 6 # vertical gap between stacked boxes
 _BOX_PAD = 5 # padding between a box outline and its text
 _OUTLINE = 2 # thickness of the box outlines
 _LINE_SPACING = 2 # extra spacing between wrapped oracle text lines
-_ART_MAX_FRAC = 0.6 # max fraction of the flexible space the art window may take when there is text
-_ART_MIN_H = 60 # minimum height of the art window
 _TEXT_MIN_H = 24 # minimum height of the oracle text box
+_MAX_ART_HEIGHT = 320 # maximum height of the art window in pixels
 # Font size bounds (max, min) for each element; text is scaled within these to fit its container
 _TITLE_CAP, _TITLE_FLOOR = 26, 12
 _TYPE_CAP, _TYPE_FLOOR = 19, 10
@@ -74,13 +77,11 @@ class PrinterManager:
         """Render the card information and art crop into a single black & white image resembling a
         real Magic card: a boxed title bar (name + mana cost), an art window, a type line bar, an
         oracle text box and a bottom-right power/toughness box. Non-essential visual design is left
-        out so the black & white result stays legible. The image width matches the printer width and
-        its length is capped to keep real-card proportions; text is scaled to fit its containers. The
-        length is only exceeded if the oracle text does not fit even at the smallest font size.
+        out so the black & white result stays legible. 
 
         Args:
             card_data: Dict containing the card information. Must be standardized so all relevant keys exist.
-            art_image: PIL Image object of the (already black & white) art crop of the card.
+            art_image: PIL Image object of the art crop of the card (black & white, width of the printer).
         Returns:
             A 1-bit PIL Image of the rendered card, sized to the printer width.
         """
@@ -114,29 +115,25 @@ class PrinterManager:
         else:
             pt_font, h_pt = None, 0
 
-        # Divide the remaining vertical space (up to real-card proportions) between the art window and
-        # the text box. The art is sized the same whether or not the card has oracle text: a card
-        # without oracle text keeps this layout and simply gets an empty text box (no scaled-up art).
-        target_h = round(width * CARD_ASPECT_H / CARD_ASPECT_W)
+        # The art fills the full width at its natural height (capped at _MAX_ART_HEIGHT); the oracle text
+        # box gets whatever is left up to DESIRED_HEIGHT. This keeps the image close to a desired length
+        # without tying it to real-card proportions. The art is sized the same whether or not the card
+        # has oracle text: a card without oracle text keeps this layout and gets an empty text box.
         box_count = 4 + (1 if has_pt else 0) # title, art, type, text, [pt]
-        flex = target_h - h_title - h_type - h_pt - (box_count - 1) * _PAD
-        art_full_h = round(content_w / (art_image.width / art_image.height)) # art height if spanning full width
-        h_art = min(art_full_h, max(_ART_MIN_H, round(flex * _ART_MAX_FRAC)))
-        h_art = min(h_art, flex - _TEXT_MIN_H)
-        h_text = flex - h_art
+        gaps = (box_count - 1) * _PAD
+        h_art = min(art_image.height, _MAX_ART_HEIGHT) # art already spans the printer width; cap its height
+        h_text = max(_TEXT_MIN_H, DESIRED_HEIGHT - h_title - h_art - h_type - h_pt - gaps)
 
-        # Scale oracle text to fit its box; only extend the canvas if it overflows the smallest font
-        extra = 0
+        # Scale oracle text to fit its box; grow the box (and the image) if it overflows the smallest font
         oracle_font, oracle_lines = None, []
         if has_text:
             oracle_font, oracle_lines = self._fit_wrapped(scratch, oracle_text, text_w, h_text - 2 * _BOX_PAD,
                                                           _ORACLE_CAP, _ORACLE_FLOOR, _LINE_SPACING)
             used = len(oracle_lines) * self._line_height(oracle_font, _LINE_SPACING) + 2 * _BOX_PAD
-            extra = max(0, used - h_text) # only grows the canvas if text overflows the smallest font
-            h_text += extra
+            h_text = max(h_text, used) # only grows past DESIRED_HEIGHT if text overflows the smallest font
 
         # Build the canvas (white background); the boxes below fill it edge to edge, without a frame
-        total_h = target_h + extra
+        total_h = h_title + h_art + h_type + h_text + h_pt + gaps
         img = Image.new("1", (width, total_h), 1)
         draw = ImageDraw.Draw(img)
         x0 = 0
@@ -150,12 +147,12 @@ class PrinterManager:
             self._draw_rich_text(draw, (x1 - inpad, y + h_title / 2), mana_cost, title_font, fill=0, anchor="rm")
         y += h_title + _PAD
 
-        # Art window: art crop scaled to fit while preserving its aspect ratio, centered (no border)
-        scale = min((x1 - x0 + 1) / art_image.width, h_art / art_image.height)
-        aw = max(1, round(art_image.width * scale))
-        ah = max(1, round(art_image.height * scale))
-        art_resized = art_image.convert("L").resize((aw, ah), Image.Resampling.LANCZOS).convert("1")
-        img.paste(art_resized, (x0 + ((x1 - x0 + 1) - aw) // 2, y + (h_art - ah) // 2))
+        # Scale down art image (preserving its aspect ratio) when taller than the window (above _MAX_ART_HEIGHT);
+        # otherwise it is pasted as is. Centered horizontally to letterbox the scaled-down case, no border.
+        art = art_image
+        if art.height > h_art:
+            art = art.resize((round(art.width * h_art / art.height), h_art), Image.Resampling.LANCZOS)
+        img.paste(art, (x0 + ((x1 - x0 + 1) - art.width) // 2, y + (h_art - art.height) // 2))
         y += h_art + _PAD
 
         # Type line bar
