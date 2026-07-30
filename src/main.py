@@ -35,24 +35,28 @@ def init(image_download_types: list[str] = _SUPPORTED_IMAGE_TYPES) -> bool:
     # Step 1: Download card data from Scryfall API and save to JSON file
     display.display_loading_screen("[1/4]\nDownloading\ncard data...", size=1)
     success = init_scryfall_data()
+    display.stop_loading_screen()
     if not success:
         return False
 
     # Step 2: Create a SQLite database and load card data into it; save image URLs for later downloading
     display.display_loading_screen("[2/4]\nLoading data\ninto db...", size=2)
     success, image_type_data = init_db(image_download_types)
+    display.stop_loading_screen()
     if not success:
         return False
 
     # Step 3: Download card images based on the downloaded card data
     display.display_loading_screen("[3/4]\nDownloading\ncard images...", size=3)
     success = init_card_images(image_type_data)
+    display.stop_loading_screen()
     if not success:
         return False
 
     # Step 4: Process downloaded images (turn into high-contrast black & white versions)
     display.display_loading_screen("[4/4]\nProcessing\ncard images...", size=4)
     success = init_image_processing(image_download_types, printer.device_width)
+    display.stop_loading_screen()
     if not success:
         return False
     return True
@@ -79,6 +83,9 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
     current_card_image = None
     full_print_mode = DEFAULT_PRINT_FULL if IMAGE_TYPE_FULL in enabled_image_types else False
     new_card_since_mode_switch = False
+    button_handler.reset() # reset button state after init
+    rotary_encoder_handler.reset()
+    rotary_encoder_handler.reset_rotary()
     try:
         while True:
             # handle main button events: single click to display context info, 
@@ -103,19 +110,25 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
                     display.display_text("Only one image type is enabled.\nCannot switch print modes.")
                     time.sleep(3)
                     display.display_mana_value(rotary_value) # return to default display
+                    button_handler.reset()
                     continue
                 full_print_mode = not full_print_mode
+                if full_print_mode:
+                    display.display_text("Switched to full card print mode.")
+                else:
+                    display.display_text("Switched to text print mode.")
+                time.sleep(2) # give user time to read message
                 if current_card:
                     current_card_image = get_card_image_for_mode(current_card, "full" if full_print_mode else "art")
                 if not new_card_since_mode_switch: # don't print card again if switching modes back to the same mode as before
+                    display.display_mana_value(rotary_value) # return to default display
+                    button_handler.reset()
                     continue
                 gpio.toggle_led_blink(True) # make LED blink while busy
                 display.display_loading_screen("Printing current card in new mode...")
                 if full_print_mode: # full card image mode
-                    display.display_text("Switched to full card print mode.")
                     printer.print_card_image(current_card_image)
                 else: # text with art crop mode
-                    display.display_text("Switched to text print mode.")
                     printer.print_card_as_image(current_card_info, current_card_image)
                 new_card_since_mode_switch = False
                 display.stop_loading_screen()
@@ -251,20 +264,26 @@ if __name__ == "__main__":
         print(f"Failed to initialize hardware components: {e}")
         cleanup()
         subprocess.run(["shutdown"]) # shut down because user cannot be shown error message on display and would not know what is happening otherwise
+    display.display_text("Momir\nPrinter", "title")
+    time.sleep(2)
     
     ### INIT DATA
     
     if not args.skipinit:
-        display.display_text("Startup successful.\nBeginning initialization.")
+        display.display_text("Beginning initialization.")
         time.sleep(2) # wait a moment to give user chance to press button for skipping initialization steps if desired
     
     init_success = True # only false if initialization steps were attempted and then failed
     if args.skipinit or button_handler.is_pressed():
         print("=> Skipping initialization steps...")
+        display.display_text("Skipping initialization.")
+        time.sleep(2)
     elif has_internet_connection():
         init_success = init(enabled_image_types)
     else:
         print("=> No internet connection detected. Skipping initialization steps...")
+        display.display_text("No connection.\nSkipping initialization.")
+        time.sleep(2)
     gpio.toggle_led_blink(False) # stop LED blinking after initialization is done
     
     # Restart the program to try initialization again on next run or shutdown if button pressed
