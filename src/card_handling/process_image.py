@@ -3,7 +3,7 @@ import asyncio
 from contextlib import nullcontext
 from io import BytesIO
 from pathlib import Path
-from PIL import Image, ImageOps
+from PIL import Image, ImageEnhance
 import aiofile
 
 from card_handling.load_scryfall_data import IMAGE_TYPE_ART, IMAGE_TYPE_FULL, _IMAGE_DIR_FULL, make_filename_valid
@@ -144,7 +144,7 @@ async def process_image(file: str,
     return None
 
 def _run_processing_pipeline(input_file: Path, device_width: int, encode: bool) -> tuple[Image.Image, bytes | None]:
-    """Run the image processing pipeline (decode, resize, grayscale, contrast, optional encode).
+    """Run the image processing pipeline of turning an image into a resized high-contrast black & white version.
 
     Args:
         input_file: path to the source image
@@ -155,20 +155,23 @@ def _run_processing_pipeline(input_file: Path, device_width: int, encode: bool) 
         A tuple of (processed image, encoded PNG bytes, or None if encode is False)
     """
     img = Image.open(input_file)
-    # resize to fit the printer
+    # Resize to fit the printer
     ratio = img.size[0] / img.size[1]
     new_height = int(device_width / ratio)
     img = img.resize((device_width, new_height))
-    # convert to grayscale
-    gray = img.convert("L")
-    # increase contrast
-    bw = ImageOps.autocontrast(gray, cutoff=5)
+    # Increase contrast
+    img = ImageEnhance.Contrast(img).enhance(1.4)
+    # Increase brightness
+    img = ImageEnhance.Brightness(img).enhance(1.6)
+    # Convert to pure black & white (printer does not support grayscales)
+    img = img.convert("1")
+    
     data = None
     if encode:
         buffer = BytesIO()
-        bw.save(buffer, format=IMAGE_EXTENSION[1:])
+        img.save(buffer, format=IMAGE_EXTENSION[1:])
         data = buffer.getvalue()
-    return bw, data
+    return img, data
 
 def get_card_image_for_mode(card_name: str, mode: str) -> Image.Image:
     """Get the card printer image for the specified mode (full or art) from the database.
