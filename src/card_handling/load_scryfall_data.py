@@ -9,6 +9,7 @@ from io import BytesIO
 from collections.abc import Generator
 import requests
 import aiohttp
+import aiofile
 from PIL import Image
 
 from . import DATA_PATH
@@ -320,9 +321,11 @@ async def _download_card_image(name: str,
             content = await response.read()
         if not content:
             raise ValueError("empty response body")
-        image = Image.open(BytesIO(content))
-        image.load()
-        image.save(tmp_file)
+        await asyncio.to_thread(lambda: Image.open(BytesIO(content)).load()) # validate image
+        async with aiofile.async_open(tmp_file, "wb") as f:
+            await f.write(content)
+        if tmp_file.stat().st_size != len(content):
+            raise IOError(f"short write: {tmp_file.stat().st_size}/{len(content)} bytes")
         os.replace(tmp_file, output_file)
     except Exception as e:
         tmp_file.unlink(missing_ok=True)
