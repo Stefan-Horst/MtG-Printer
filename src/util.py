@@ -45,11 +45,14 @@ def init_db(image_download_types: list[str]) -> tuple[bool, dict[str, list[tuple
         print(f"Failed to create or open database: {e}.\nExiting.")
         return False, image_type_data
     
+    chunks = load_scryfall_card_data_chunks()
     cached_card_data = []
     count = 0
-    for card_data in load_scryfall_card_data_chunks():
-        cached_card_data.append(card_data)
-        if len(cached_card_data) >= CARDS_CACHE_AMOUNT:
+    while True:
+        card_data = next(chunks, None)
+        if card_data:
+            cached_card_data.append(card_data)
+        if len(cached_card_data) >= CARDS_CACHE_AMOUNT or not card_data: # run every x cards and after last card
             # Save card data
             try:
                 db.save_cards_data(cached_card_data, commit=False, handle_exist="ignore")
@@ -78,6 +81,8 @@ def init_db(image_download_types: list[str]) -> tuple[bool, dict[str, list[tuple
                     clear_local_data() # remove card data to avoid inconsistent state on next run
                     return False, image_type_data
             print(f"Loaded {count} cards into database.")
+        if not card_data:
+            break
             
     db.close()
     return True, image_type_data
