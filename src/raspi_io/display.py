@@ -62,87 +62,122 @@ class DisplayManager:
             draw.text((x2, y2), line2, font=title_font_large, fill="white")
 
     def display_card_info(self, card_data: dict) -> None:
-        """Display card info on the OLED display. Uses scrolling text with automatic line breaks.
-        
+        """Display card info on the OLED display as scrolling text. The card name and mana cost share
+        the first line (name on the left, mana cost on the right) when they fit; otherwise the mana
+        cost drops to its own line. The type line and oracle text are left-aligned and the
+        power/toughness is right-aligned. Mana symbols are rendered with the symbol font, and the
+        alignment accounts for their glyph widths.
+
         Args:
             card_data: Dict containing the card information. Must be standardized so all relevant keys exist.
         """
-        name = card_data["name"]
+        name = card_data["name"].replace("—", "-")
         mana_cost = card_data["mana_cost"]
-        type_line = card_data["type_line"]
-        oracle_text = card_data["oracle_text"]
+        type_line = card_data["type_line"].replace("—", "-")
+        oracle_text = card_data["oracle_text"].replace("—", "-")
         power = card_data["power"]
         toughness = card_data["toughness"]
 
-        hyphen_width = self.detail_font.getlength("-")
-        separator = "-" * max(1, int(self.display.width / hyphen_width))
+        # Separator line of hyphens spanning close to the full display width
+        separator = "-" * max(1, int(self.display.width / self.detail_font.getlength("-")))
         while self.detail_font.getlength(separator) > self.display.width:
             separator = separator[:-1]
-        separator_width = self.detail_font.getlength(separator)
 
-        def _right_align_text(text: str, target_width: float) -> str:
-            text_width = self.detail_font.getlength(text)
-            if text_width >= target_width:
-                return text
-            space_count = int(target_width - text_width)
-            return " " * space_count + text
+        # Rows to scroll as (left_text, right_text)
+        gap = self.detail_font.getlength(" " * 2) # minimum gap between name and mana cost
+        name_w = self._rich_textlength(name, self.detail_font)
+        mana_w = self._rich_textlength(mana_cost, self.detail_font)
+        if mana_cost and name_w + gap + mana_w <= self.display.width:
+            rows = [(name, mana_cost)]
+        elif mana_cost:
+            rows = [(name, ""), ("", mana_cost)]
+        else:
+            rows = [(name, "")]
+        rows += [(separator, ""), (type_line, ""), (separator, "")]
+        oracle_paragraphs = [paragraph for paragraph in oracle_text.split("\n") if paragraph]
+        for i, paragraph in enumerate(oracle_paragraphs):
+            if i > 0:
+                rows.append(("", "")) # blank line between oracle paragraphs
+            rows.append((paragraph, ""))
+        if power or toughness:
+            rows += [(separator, ""), ("", f"{power} / {toughness}")]
 
-        mana_line = _right_align_text(str(mana_cost), separator_width)
-        text = (name + "\n" + mana_line + "\n" + separator + "\n" 
-                + type_line + "\n" + separator + "\n" 
-                + oracle_text.replace("\n", "\n\n")) # add empty line after each paragraph
-
-        power_toughness = None
-        if power != "" or toughness != "":
-            power_toughness = f"{power} / {toughness}"
-            text += "\n" + separator + "\n" + _right_align_text(power_toughness, separator_width)
-
-        self.display_scrolling_text(text.replace("—", "-"), paragraph_gap=False)
+        self.display_scrolling_text(rows)
     
-    def display_scrolling_text(self, text: str, 
-                               cycles: int = 1, 
-                               start_pause: float = 4.0, 
-                               scroll_delay: float = 1.5, 
-                               end_pause: float = 2.0,
-                               paragraph_gap: bool = True) -> None:
-        """Display text with automatic line breaks and vertical scrolling if the text 
-        has more lines than the display can show at once based on its width and height.
+    def display_scrolling_text(self, rows: list[tuple[str, str]],
+                               cycles: int = 1,
+                               start_pause: float = 4.0,
+                               scroll_delay: float = 1.0,
+                               end_pause: float = 2.0) -> None:
+        """Display rows of text with automatic line breaks and vertical scrolling if they don't all
+        fit on the display at once. Each row is a (left_text, right_text) pair drawn on one line with
+        the left part left-aligned and the right part right-aligned; long left-only rows are wrapped to
+        the display width. Mana symbols are rendered with the symbol font, and the right alignment
+        accounts for the resulting glyph widths.
 
         Args:
-            text: String to display on the OLED screen
+            rows: List of (left_text, right_text) pairs to display on each line
             cycles: Number of times to cycle the scrolling effect around the display
             start_pause: Time to pause at the start of scrolling
             scroll_delay: Delay between each scroll step
             end_pause: Time to pause at the end of scrolling
-            paragraph_gap: Add an empty line after each paragraph
         """
-        lines = self._wrap_text(text, self.detail_font, self.display.width, paragraph_gap)
-        if not lines:
-            lines = [""]
-        lines.append("") # add an empty line at the end to avoid cutting off the last line
-        line_height = self.detail_font.getbbox("A")[3] - self.detail_font.getbbox("A")[1]
-        max_lines = max(1, self.display.height // line_height)
+        lines = self._wrap_rows(rows)
+        lines.append(("", "")) # add an empty line at the end to avoid cutting off the last line
+        line_advance = self.detail_font.getbbox("A")[3] - self.detail_font.getbbox("A")[1] + VERTICAL_LINE_SPACING
+        max_lines = max(1, self.display.height // line_advance)
         total_lines = len(lines)
 
-        def _draw_page(start_line: int) -> None:
-            with canvas(self.display) as draw:
-                y = 0
-                for line in lines[start_line:start_line + max_lines]:
-                    self._draw_rich_text(draw, (0, y), line, self.detail_font, fill="white", anchor="la")
-                    y += line_height + VERTICAL_LINE_SPACING
-
         if total_lines <= max_lines:
-            _draw_page(0)
+            self._draw_scroll_page(lines, 0, max_lines, line_advance)
             return
 
         scroll_steps = total_lines - max_lines
         for _ in range(cycles):
-            _draw_page(0)
+            self._draw_scroll_page(lines, 0, max_lines, line_advance)
             time.sleep(start_pause)
             for offset in range(1, scroll_steps + 1):
-                _draw_page(offset)
+                self._draw_scroll_page(lines, offset, max_lines, line_advance)
                 time.sleep(scroll_delay)
             time.sleep(end_pause)
+
+    def _wrap_rows(self, rows: list[tuple[str, str]]) -> list[tuple[str, str]]:
+        """Wrap each (left, right) row to the display width, returning the resulting display lines.
+        Long left-only rows are split across several lines; combined and right-only rows stay on one.
+
+        Args:
+            rows: List of (left_text, right_text) rows to wrap
+        Returns:
+            List of (left_text, right_text) lines that each fit the display width
+        """
+        lines = []
+        for left, right in rows:
+            if left and not right:
+                lines += [(line, "") for line
+                          in self._wrap_text(left, self.detail_font, self.display.width, paragraph_gap=False)]
+            else:
+                lines.append((left, right))
+        return lines
+
+    def _draw_scroll_page(self, lines: list[tuple[str, str]],
+                          start_line: int, count: int, line_advance: int) -> None:
+        """Draw up to `count` display lines starting at `start_line`, with each line's left part
+        left-aligned and its right part right-aligned.
+
+        Args:
+            lines: The full list of (left_text, right_text) display lines
+            start_line: Index of the first line to draw
+            count: Maximum number of lines to draw on the page
+            line_advance: Vertical distance in pixels between consecutive lines
+        """
+        with canvas(self.display) as draw:
+            y = 0
+            for left, right in lines[start_line:start_line + count]:
+                if left:
+                    self._draw_rich_text(draw, (0, y), left, self.detail_font, fill="white", anchor="la")
+                if right:
+                    self._draw_rich_text(draw, (self.display.width, y), right, self.detail_font, fill="white", anchor="ra")
+                y += line_advance
 
     def _wrap_text(self, raw_text: str, font: ImageFont, width: int, paragraph_gap: bool = True) -> list[str]:
         """Wrap text into lines that fit the display width based on the provided font.
