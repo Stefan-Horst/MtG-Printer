@@ -100,7 +100,18 @@ If your device has very limited storage (<8GB, maybe 4 GB suffice), you might ha
 
 ### Software Installation
 
-You must install python and probably some libraries + configuration to get the hardware to work. If you want to use parts of the software on a device other than the Raspberri Pi, you can install the dependencies *excluding* the hardware-specific ones with `pip install .`.
+You must install python and probably some libraries + configuration to get the hardware to work. If you want to use parts of the software on a device other than the Raspberri Pi, you can install the dependencies *excluding* the hardware-specific ones with `pip install .`. 
+
+To access the RPi remotely (as DietPi is headless), use software like [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/) (SSH client) and [WinSCP](https://winscp.net) (SFTP file browser) (*on Windows*). The [DietPi-Dashboard](https://dietpi.com/docs/software/system_stats/#dietpi-dashboard) is also convenient if you want to access and monitor your device via the browser; it can be installed from the DietPi software list.
+
+<details>
+<summary>Setup SFTP</summary>
+
+- SFTP is not enabled on DietPi by default, so you must do that:
+  - install a server, i use a lightweight one: apt install gesftpserver
+  - create link: ln -s /usr/libexec/gesftpserver /usr/lib/sftp-server
+
+</details>
 
 <details>
 <summary>Setup GPIO</summary>
