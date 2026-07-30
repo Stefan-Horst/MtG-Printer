@@ -10,16 +10,17 @@ name = "mtgprinter"
 version = "1.0.0"
 authors = [{ name="Stefan Horst", email="stefan-horst@gmx.de" }]
 description = "A program for printing Magic cards for the Momir mode on a thermal printer using a Raspberry Pi."
+requires-python = ">= 3.13"
 dependencies = [
-    "requests",
-    "aiohttp[speedups]",
-    "aiofile",
-    "pillow",
+    "requests==2.34.2",
+    "aiohttp[speedups]==3.14.3",
+    "aiofile==3.11.1",
+    "pillow==12.3.0",
 ]
 
 [project.optional-dependencies]
 raspi = [
-    "rpi-lgpio",
-    "luma.oled",
-    "python.escpos[serial]",
+    "rpi-lgpio==0.6",
+    "luma.oled==3.15.0",
+    "python.escpos[serial]==3.1",
 ]
