@@ -139,14 +139,14 @@ async def process_image(file: str,
             data = buffer.getvalue()
             tmp_file = output_file.with_suffix(output_file.suffix + ".tmp")
             try:
-                _save_image(tmp_file, output_file, data)
+                await _save_image(tmp_file, output_file, data)
             except Exception:
                 Path(tmp_file).unlink(missing_ok=True)
                 print(f"Failed to save image for {filename}. Trying again...")
                 try:
-                    _save_image(tmp_file, output_file, data)
+                    await _save_image(tmp_file, output_file, data)
                 except Exception as e:
-                    Path(output_file).unlink(missing_ok=True)
+                    Path(tmp_file).unlink(missing_ok=True)
                     print(f"~> Failed to save image for {filename}: {e}. Skipping...")
 
         if return_image:
