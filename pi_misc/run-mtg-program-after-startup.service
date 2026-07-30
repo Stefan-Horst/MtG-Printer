@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Mtg Printer After Startup
+After=network.target
+
+[Service]
+Type=simple
+Environment="RPI_LGPIO_REVISION=800012"
+ExecStart=/home/dietpi/mtgprinter/.venv/bin/python3 /home/dietpi/mtgprinter/src/main.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
