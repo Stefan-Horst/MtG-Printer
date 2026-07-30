@@ -60,9 +60,9 @@ async def _process_all_images(device_width: int,
         image_files = [file for file in image_files if file.stem not in existing_images]
         print(f"Skipping {len(existing_images)} existing images. Processing {len(image_files)} new images...")
     
-    def _get_corrupt_files(chunk: list[Path], output_dir: Path) -> list[Path]:
+    def _get_corrupt_files(chunk: list[Path], path: Path) -> list[Path]:
         """Check if the output files in a chunk are corrupted. Returns a list of corrupted files."""
-        out = lambda f: output_dir / f"{f.stem}{IMAGE_EXTENSION}"
+        out = lambda f: path / f"{f.stem}{IMAGE_EXTENSION}"
         return [f for f in chunk if not out(f).exists() or out(f).stat().st_size == 0]
     
     sem = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
@@ -70,19 +70,78 @@ async def _process_all_images(device_width: int,
     for i in range(0, len(image_files), batch_size):
         print(f"Processing image batch {i // batch_size + 1}/{batch_amount}...")
         chunk = image_files[i:i+batch_size]
-        tasks = [process_image(image_file.name, device_width, image_dir, output_dir, sem=sem) 
+        tasks = [process_image(image_file.name, device_width, input_path, output_path, sem=sem) 
                  for image_file in chunk]
         await asyncio.gather(*tasks)
-        fails = _get_corrupt_files(chunk, output_dir)
+        fails = _get_corrupt_files(chunk, output_path)
         if fails:
             print(f"Failed to process {len(fails)} images. Trying again...")
-            tasks = [process_image(f.name, device_width, image_dir, output_dir, sem=sem) for f in fails]
+            tasks = [process_image(f.name, device_width, input_path, output_path, sem=sem) for f in fails]
             await asyncio.gather(*tasks)
-            fails = _get_corrupt_files(chunk, output_dir)
+            fails = _get_corrupt_files(chunk, output_path)
             if fails:
                 print(f"~> Failed to process {len(fails)} images again. Skipping...")
                 for f in fails: # delete corrupted images
-                    (Path(output_dir) / f"{f.stem}{IMAGE_EXTENSION}").unlink(missing_ok=True)
+                    (output_path / f"{f.stem}{IMAGE_EXTENSION}").unlink(missing_ok=True)
+
+async def process_image(file: str,
+                        device_width: int,
+                        image_path: Path,
+                        output_path: Path, 
+                        return_image: bool = False,
+                        sem: asyncio.Semaphore = None) -> Image.Image | None:
+    """
+    Load an image file, turn it into a high-contrast black & white
+    version optimized for printing and save the result separately.
+
+    Args:
+        file: name of the image file to process, including extension
+        device_width: Width of the printer in pixels
+        image_path: directory containing the source images
+        output_path: directory for the processed images; if None, the image will not be saved
+        return_image: whether to return the processed image; if False, the function returns None
+        sem: optional asyncio.Semaphore to limit concurrent processing; if None, no limit is applied
+
+    Returns:
+        The processed image if `return_image` is True, otherwise None
+    """
+    async def _save_image(tmp_file: Path, output_file: Path, data: bytes) -> None:
+        """Save the image data to the output file using an intermediate temporary file."""
+        async with aiofile.async_open(tmp_file, "wb") as f:
+            await f.write(data)
+        if tmp_file.stat().st_size != len(data):
+            raise IOError(f"short write: {tmp_file.stat().st_size}/{len(data)} bytes")
+        os.replace(tmp_file, output_file)
+    
+    sem = sem or nullcontext() # without sempahore use placeholder context manager that does nothing
+    async with sem:
+        input_file = image_path / file
+        filename = input_file.stem
+        try:
+            bw, data = await asyncio.to_thread(
+                _run_processing_pipeline, input_file, device_width, bool(output_path)
+            )
+        except Exception as e:
+            print(f"Failed to process image for {filename}: {e}")
+            return None
+
+        if output_path:
+            output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
+            tmp_file = output_file.with_suffix(output_file.suffix + ".tmp")
+            try:
+                await _save_image(tmp_file, output_file, data)
+            except Exception:
+                Path(tmp_file).unlink(missing_ok=True)
+                print(f"Failed to save image for {filename}. Trying again...")
+                try:
+                    await _save_image(tmp_file, output_file, data)
+                except Exception as e:
+                    Path(tmp_file).unlink(missing_ok=True)
+                    print(f"~> Failed to save image for {filename}: {e}. Skipping...")
+
+        if return_image:
+            return bw
+    return None
 
 def _run_processing_pipeline(input_file: Path, device_width: int, encode: bool) -> tuple[Image.Image, bytes | None]:
     """Run the image processing pipeline (decode, resize, grayscale, contrast, optional encode).
@@ -110,66 +169,6 @@ def _run_processing_pipeline(input_file: Path, device_width: int, encode: bool) 
         bw.save(buffer, format=IMAGE_EXTENSION[1:])
         data = buffer.getvalue()
     return bw, data
-
-async def process_image(file: str,
-                        device_width: int,
-                        image_dir: str = _IMAGE_DIR_FULL,
-                        output_dir: str = _PRINTER_IMAGE_DIR_FULL, 
-                        return_image: bool = False,
-                        sem: asyncio.Semaphore = None) -> Image.Image | None:
-    """
-    Load an image file, turn it into a high-contrast black & white
-    version optimized for printing and save the result separately.
-
-    Args:
-        file: name of the image file to process, including extension
-        device_width: Width of the printer in pixels
-        image_dir: directory containing the source images
-        output_dir: directory for the processed images; if None, the image will not be saved
-        return_image: whether to return the processed image; if False, the function returns None
-        sem: optional asyncio.Semaphore to limit concurrent processing; if None, no limit is applied
-
-    Returns:
-        The processed image if `return_image` is True, otherwise None
-    """
-    async def _save_image(tmp_file: Path, output_file: Path, data: bytes) -> None:
-        """Save the image data to the output file using an intermediate temporary file."""
-        async with aiofile.async_open(tmp_file, "wb") as f:
-            await f.write(data)
-        if tmp_file.stat().st_size != len(data):
-            raise IOError(f"short write: {tmp_file.stat().st_size}/{len(data)} bytes")
-        os.replace(tmp_file, output_file)
-    
-    sem = sem or nullcontext() # without sempahore use placeholder context manager that does nothing
-    async with sem:
-        input_file = Path(image_dir) / file
-        filename = input_file.stem
-        try:
-            bw, data = await asyncio.to_thread(
-                _run_processing_pipeline, input_file, device_width, bool(output_dir)
-            )
-        except Exception as e:
-            print(f"Failed to process image for {filename}: {e}")
-            return None
-
-        if output_dir:
-            output_path = Path(output_dir)
-            output_file = output_path / f"{filename}{IMAGE_EXTENSION}"
-            tmp_file = output_file.with_suffix(output_file.suffix + ".tmp")
-            try:
-                await _save_image(tmp_file, output_file, data)
-            except Exception:
-                Path(tmp_file).unlink(missing_ok=True)
-                print(f"Failed to save image for {filename}. Trying again...")
-                try:
-                    await _save_image(tmp_file, output_file, data)
-                except Exception as e:
-                    Path(tmp_file).unlink(missing_ok=True)
-                    print(f"~> Failed to save image for {filename}: {e}. Skipping...")
-
-        if return_image:
-            return bw
-    return None
 
 def get_card_image_for_mode(card_name: str, mode: str) -> Image.Image:
     """Get the card printer image for the specified mode (full or art) from the database.
