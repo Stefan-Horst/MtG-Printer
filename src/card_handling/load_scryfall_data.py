@@ -30,10 +30,10 @@ IMAGE_TYPE_ART = "art_crop"
 SCRYFALL_API_URL = "https://api.scryfall.com"
 BULK_DATA_ENDPOINT = "bulk-data"
 SCRYFALL_HEADERS = {"User-Agent": "MtgMomirPrinter/1.0"}
-TIMEOUT = 20 # seconds
+TIMEOUT = 2 * 60 # seconds
 TIME_BETWEEN_REQUESTS = 100 # milliseconds
 CHUNK_SIZE = 1024 * 1024 * 10 # 10 MB
-MAX_CONCURRENT_DOWNLOADS = 100 # limit for concurrent image downloads
+MAX_CONCURRENT_DOWNLOADS = 20 # limit for concurrent image downloads
 IMAGES_BATCH_SIZE = 500 # number of images to download at once in the async function
 
 _SUPPORTED_IMAGE_TYPES = [IMAGE_TYPE_FULL, IMAGE_TYPE_ART] # image types supported for downloading and processing
