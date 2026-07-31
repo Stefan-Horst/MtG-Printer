@@ -215,7 +215,13 @@ def main(enabled_image_types: list[str]) -> Literal["shutdown", "restart", "exit
     except Exception as e:
         print(f"~> An error occurred: {e}\nRestarting...\n")
         display.display_text("An error occurred.\nRestarting...")
+        button_handler.reset()
         time.sleep(3) # wait a moment to allow the user to see the message on the display before restarting
+        if button_handler.is_pressed(): # option to instead shut down
+            print("Manually shutting down instead...")
+            display.display_text("Shutting down instead...")
+            time.sleep(2)
+            return "shutdown"
         return "restart skipinit"
     return "exit" # just exit the program
 
@@ -265,7 +271,7 @@ if __name__ == "__main__":
         cleanup()
         subprocess.run(["shutdown"]) # shut down because user cannot be shown error message on display and would not know what is happening otherwise
     display.display_text("Momir\nPrinter", "title")
-    time.sleep(2)
+    time.sleep(3)
     
     ### INIT DATA
     
@@ -291,7 +297,7 @@ if __name__ == "__main__":
         gpio.toggle_led_blink(True, interval=0.2) # blink LED rapidly to indicate initialization failure
         print("=> Initialization failed")
         display.display_text("Initialization failed")
-        time.sleep(2)
+        time.sleep(3)
         if button_handler.is_pressed():
             print("Manually shutting down...")
             display.display_text("Shutting down...")
